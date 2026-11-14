@@ -1,0 +1,21 @@
+[importlinter]
+root_packages =
+    farm
+
+[importlinter:contract:farm-layering]
+name = farm layering
+type = layers
+containers =
+    farm
+layers =
+    testing
+    adapters
+    console
+    runner
+    control | registry | vision
+    calibration
+    capture
+    contracts
+exhaustive = true
+exhaustive_ignores =
+    app
