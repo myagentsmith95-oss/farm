@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.1
-**Supersedes:** ADF-DEC-V1.0 (Z.ai Engineering, November 2026; the PDF is the V1.0 snapshot)
+**Document:** DOC ADF-DEC-V1.2
+**Supersedes:** ADF-DEC-V1.1 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 15, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -13,7 +13,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 
 | # | Change from V1.0 | Where | Status |
 |---|---|---|---|
-| C1 | Interfaces: five seams (InputBackend, CaptureSource, LeaseManager, DeviceEvent, Matcher/OcrEngine), not four. Matcher/OcrEngine is one seam holding two interfaces, so there are six interface types. | D4, ch. 4, Week 1 | settled |
+| C1 | Interfaces: five seams (InputBackend, CaptureSource, LeaseManager, DeviceEvent, Matcher/OcrEngine), not four. Matcher/OcrEngine is one seam holding two interfaces, so there were six interface types (now seven, see C14). | D4, ch. 4, Week 1 | settled |
 | C2 | Contracts hold models and interfaces only (stdlib and pydantic). Fakes and the sim device move to `farm.testing`, outside the production import graph. | D4, ch. 4, ch. 8 | settled |
 | C3 | Lease authority moves from the registry to the runner's supervisor. Core 2 becomes "Registry"; core 3 becomes "Runner, orchestration and lease authority". Five cores, same count; the same code changes package, so the custom share is unchanged. | ch. 4, Table 4 | settled |
 | C4 | The single writer of the event stream is the supervisor. | ch. 6 | settled |
@@ -22,10 +22,15 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C7 | The ESP32 wire protocol and the farm-to-Maa message surface are specified in `protocol/` with golden test vectors. | ch. 4A | settled (serial); Maa spec due W5 |
 | C8 | Two seat classes: standard (ESP32 HID + UVC capture, most phones) and ADB-only (ADB control + screencap, a minority). Phones without video out are valid seats. | ch. 2 | proposed |
 | C9 | `CaptureSource` gains a second implementation, ADB screencap, with a latency caveat against the 300 to 500 ms budget (unmeasured). | ch. 4, ch. 9 | proposed |
-| C10 | Coordinates are normalized at the contract level; each backend owns its conversion to device units. | ch. 2, ch. 4 | proposed |
+| C10 | Coordinates are normalized at the contract level; each backend owns its conversion to device units. | ch. 2, ch. 4 | settled in contracts (Action, Region, Match); backend conversion pending W2 and W3 |
 | C11 | Risk register renumbered R1 to R7 (V1.0 began at R2 with no R1). Three rows and an owner column added. | ch. 9 | settled |
 | C12 | Reconciled the 57% coverage and 55% allocation figures, and stated the implied 10% commodity slice as two features. | ch. 3, ch. 4 | settled (wording); see O1 |
 | C13 | Scope of the "roughly a third" custom share stated: host software only, firmware tracked separately. | ch. 4 | proposed |
+| C14 | `SettleChecker` is its own interface, separate from `Matcher`, because imagehash backs it in both the Maa and the OpenCV case and it runs before every action, so it must stay in-process. Seven interface types in five seams. | ch. 4.1 | settled |
+| C15 | Lease semantics fixed: one holder per device; `acquire` on a held device raises even for the same holder; fencing token increases per grant and is unchanged by `renew`; valid while now < expiry; stale `release` or `renew` never affects a newer holder. The InputRouter checks leases; backends never see them. | ch. 4.1 | settled |
+| C16 | The `DeviceEvent` seam is carried by a `DeviceEventSource` interface (blocking `events()`, `close()`), with USB vendor and product ids validated as four lowercase hex digits. Distinct from the `Event` log model. | ch. 4.1 | settled |
+| C17 | Every seam has a reusable contract suite run against its fake and, later, against the real adapter, so a fake cannot drift from reality unnoticed. | ch. 4.1 | settled |
+| C18 | Contract models in code: `DeviceProfile` (device id, ordered non-empty duplicate-free input modes), `Frame` (monotonic capture timestamp, source kind, encoded payload as bytes, to be revisited after the W3 measurements) and `Action` (Tap, Swipe, Key, Text in normalized coordinates, no device id). | ch. 2, ch. 4 | settled |
 
 **Open items carried forward**
 
@@ -88,7 +93,7 @@ Phones differ in what they accept, so a seat is one of two classes:
 
 Everything above the seams is shared by both classes: vision (matching and OCR), scenarios, queue, retries, leases, the event log and the console.
 
-### 2.2 Normalized coordinates *(proposed, C10)*
+### 2.2 Normalized coordinates *(C10)*
 
 Scenarios, the decision engine and the runner express positions in normalized coordinates (0 to 1). Each `InputBackend` converts them to its own units. HID needs the L1 tap-grid and L2 active-area calibration, because the ESP32 emulates a pointer and where a tap lands depends on the phone's active area. ADB takes native pixels, so its conversion is a scale by screen width and height and needs no calibration. Calibration is therefore an HID-path concern, and ADB-only seats skip it.
 
@@ -157,12 +162,12 @@ Adoption only works because every library arrives sealed behind a farm-owned int
 | DeviceEvent | pyudev device events | Udev event shapes leak into every consumer of attach/detach; a library swap becomes a farm-wide refactor |
 | InputBackend | adbutils (ADB path); ESP32 HID (custom) | Input routing forks per backend; per-device input preference collapses into if-else chains |
 | CaptureSource | opencv-python-headless (UVC); ADB screencap *(proposed, C9)* | The freshness contract and latest-frame slot get rebuilt around whatever codec path replaces it |
-| Matcher / OcrEngine | MaaFramework, or OpenCV + imagehash | The week-five decision stops being a configuration change and becomes a migration |
+| Matcher / OcrEngine / SettleChecker | MaaFramework or OpenCV (Matcher, OcrEngine); imagehash (SettleChecker, in both cases) | The week-five decision stops being a configuration change and becomes a migration; settle checks would pull a Maa round trip into every action |
 | LeaseManager | Nothing: pure custom core | The single-writer invariant loses its single implementation point |
 
-*Table 4. Five seams, six interface types (Matcher and OcrEngine are two interfaces in one seam). Interfaces exist before the libraries arrive, not after.*
+*Table 4. Five seams, seven interface types: InputBackend, CaptureSource, LeaseManager, DeviceEventSource, and Matcher, OcrEngine and SettleChecker sharing one seam row. Interfaces exist before the libraries arrive, not after.*
 
-`LeaseManager` is a seam in contracts; its implementation lives in the runner's supervisor (C3). The `Event` log model (sequence and timestamp) and the `DeviceEvent` seam (pyudev attach/detach) are different things and live in different contract modules.
+`LeaseManager` is a seam in contracts; its implementation lives in the runner's supervisor (C3). Lease semantics (C15): a device has at most one holder; `acquire` on a held device raises `LeaseHeld`, even for the same holder; each grant carries a fencing token that increases per device and is unchanged by `renew`; a lease is valid while the monotonic clock is below its expiry; `renew` of an expired, released or taken-over lease raises `LeaseExpired`; a stale `release` never frees a newer holder's lease. The InputRouter checks `is_valid` before every `perform`, and backends never see leases. The `Event` log model (sequence and timestamp) and the `DeviceEvent` seam (pyudev attach/detach) are different things and live in different contract modules.
 
 **ADB screencap as a second CaptureSource *(proposed, C9)*.** ADB-only seats observe the screen through ADB screencap, which is generally slower and heavier than a UVC frame grab. Its latency has not been measured (O4). The frame type carries a capture timestamp and a source kind, so the freshness contract and settle checks can judge frames from either source, while vision stays identical.
 
