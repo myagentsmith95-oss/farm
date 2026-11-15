@@ -23,3 +23,11 @@ class StaleFrame(FarmError):
 
 class UnknownTemplate(FarmError):
     """The requested template is not registered with the matcher."""
+
+
+class LeaseHeld(FarmError):
+    """The device is already leased to a holder whose lease has not expired."""
+
+
+class LeaseExpired(FarmError):
+    """The lease expired, was released, or was taken over by a newer holder."""
