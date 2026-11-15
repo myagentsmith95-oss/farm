@@ -19,3 +19,7 @@ class CaptureError(FarmError):
 
 class StaleFrame(FarmError):
     """No frame is fresh enough."""
+
+
+class UnknownTemplate(FarmError):
+    """The requested template is not registered with the matcher."""
