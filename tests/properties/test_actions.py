@@ -103,31 +103,3 @@ def test_union_rejects_unknown_kind():
 def test_kind_cannot_be_overridden_to_another_kind():
     with pytest.raises(ValidationError):
         Tap(kind="swipe", x=0.5, y=0.5)
-
-
-@pytest.mark.parametrize(
-    "action",
-    [
-        Tap(x=0.25, y=0.75),
-        Swipe(x1=0.1, y1=0.2, x2=0.8, y2=0.9, duration_ms=250),
-        Key(code="HOME"),
-        Text(value="hello"),
-    ],
-)
-def test_union_round_trips_through_plain_dicts(action):
-    assert adapter.validate_python(action.model_dump()) == action
-
-
-def test_union_picks_the_class_from_kind():
-    parsed = adapter.validate_python({"kind": "tap", "x": 0.5, "y": 0.5})
-    assert isinstance(parsed, Tap)
-
-
-def test_union_rejects_unknown_kind():
-    with pytest.raises(ValidationError):
-        adapter.validate_python({"kind": "pinch", "x": 0.5, "y": 0.5})
-
-
-def test_kind_cannot_be_overridden_to_another_kind():
-    with pytest.raises(ValidationError):
-        Tap(kind="swipe", x=0.5, y=0.5)
