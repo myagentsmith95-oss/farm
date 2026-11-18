@@ -44,11 +44,11 @@ src/farm/contracts/capture.py src/farm/contracts/matching.py src/farm/contracts/
 src/farm/contracts/lease.py src/farm/contracts/event_log.py src/farm/contracts/seats.py
 src/farm/testing/__init__.py src/farm/testing/clock.py src/farm/testing/input.py
 src/farm/testing/capture.py src/farm/testing/matching.py src/farm/testing/events.py
-src/farm/testing/lease.py src/farm/testing/event_log.py
+src/farm/testing/lease.py src/farm/testing/event_log.py src/farm/testing/maa_stub.py
 src/farm/adapters/__init__.py src/farm/registry/__init__.py src/farm/registry/profiles.py src/farm/registry/seats.py src/farm/calibration/__init__.py
 src/farm/capture/__init__.py src/farm/control/__init__.py src/farm/runner/__init__.py
 src/farm/vision/__init__.py src/farm/console/__init__.py src/farm/console/views/__init__.py
-tests/test_contracts_purity.py
+tests/test_contracts_purity.py tests/d6_day5_dual_client_test.py
 tests/properties/test_device_profile.py tests/properties/test_actions.py tests/properties/test_frame.py
 tests/properties/test_matching_models.py tests/properties/test_events_lease_models.py
 tests/properties/test_event_model.py tests/properties/test_event_stream_invariants.py
