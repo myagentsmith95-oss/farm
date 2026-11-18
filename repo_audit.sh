@@ -41,20 +41,23 @@ src/farm/__init__.py src/farm/app.py
 src/farm/contracts/__init__.py src/farm/contracts/models.py src/farm/contracts/actions.py
 src/farm/contracts/frame.py src/farm/contracts/errors.py src/farm/contracts/input.py
 src/farm/contracts/capture.py src/farm/contracts/matching.py src/farm/contracts/events.py
-src/farm/contracts/lease.py
+src/farm/contracts/lease.py src/farm/contracts/event_log.py src/farm/contracts/seats.py
 src/farm/testing/__init__.py src/farm/testing/clock.py src/farm/testing/input.py
 src/farm/testing/capture.py src/farm/testing/matching.py src/farm/testing/events.py
-src/farm/testing/lease.py
+src/farm/testing/lease.py src/farm/testing/event_log.py
 src/farm/adapters/__init__.py src/farm/registry/__init__.py src/farm/calibration/__init__.py
 src/farm/capture/__init__.py src/farm/control/__init__.py src/farm/runner/__init__.py
 src/farm/vision/__init__.py src/farm/console/__init__.py src/farm/console/views/__init__.py
 tests/test_contracts_purity.py
 tests/properties/test_device_profile.py tests/properties/test_actions.py tests/properties/test_frame.py
 tests/properties/test_matching_models.py tests/properties/test_events_lease_models.py
+tests/properties/test_event_model.py tests/properties/test_event_stream_invariants.py
+tests/properties/test_seat_models.py
 tests/contracts/input_backend_suite.py tests/contracts/test_fake_input_backend.py
 tests/contracts/capture_source_suite.py tests/contracts/test_fake_capture_source.py
 tests/contracts/matching_suite.py tests/contracts/test_fake_matching.py
 tests/contracts/events_suite.py tests/contracts/lease_suite.py tests/contracts/test_fake_events_lease.py
+tests/contracts/event_log_suite.py tests/contracts/test_fake_event_log.py
 "
 MISSING=0
 for f in $EXPECTED; do
@@ -106,16 +109,17 @@ grep -m1 -o "DOC ADF-DEC-V[0-9.]*" docs/decision-memo.md 2>/dev/null | sed 's/^/
 
 echo
 echo "== 6. Tests and layering"
-if command -v pytest >/dev/null 2>&1; then
-  OUT=$(pytest -q 2>&1 | tail -n 3)
+PYTEST=$(command -v pytest || echo .venv/bin/pytest)
+if [ -x "$PYTEST" ]; then
+  OUT=$("$PYTEST" -q 2>&1 | tail -n 3)
   echo "$OUT" | sed 's/^/  /'
   echo "$OUT" | grep -q "passed" && ! echo "$OUT" | grep -qE "failed|error" && ok "pytest green" || bad "pytest not green"
-  echo "  (expected totals: 99 after input/capture, 148 after matching, 204 after events/lease)"
 else
   warn "pytest not found; activate the venv"
 fi
-if command -v lint-imports >/dev/null 2>&1; then
-  LI=$(lint-imports 2>&1 | grep -E "KEPT|BROKEN|Contracts:" )
+LINT_IMPORTS=$(command -v lint-imports || echo .venv/bin/lint-imports)
+if [ -x "$LINT_IMPORTS" ]; then
+  LI=$("$LINT_IMPORTS" 2>&1 | grep -E "KEPT|BROKEN|Contracts:" )
   echo "$LI" | sed 's/^/  /'
   echo "$LI" | grep -q "0 broken" && ok "import layering kept" || bad "import layering broken"
 else
