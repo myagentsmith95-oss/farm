@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.5
-**Supersedes:** ADF-DEC-V1.4 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.6
+**Supersedes:** ADF-DEC-V1.5 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 18, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -17,9 +17,9 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C2 | Contracts hold models and interfaces only (stdlib and pydantic). Fakes and the sim device move to `farm.testing`, outside the production import graph. | D4, ch. 4, ch. 8 | settled |
 | C3 | Lease authority moves from the registry to the runner's supervisor. Core 2 becomes "Registry"; core 3 becomes "Runner, orchestration and lease authority". Five cores, same count; the same code changes package, so the custom share is unchanged. | ch. 4, Table 4 | settled |
 | C4 | The single writer of the event stream is the supervisor. | ch. 6 | settled |
-| C5 | MaaFramework ships as its own distribution (`services/maa_service`, separate venv), so the LGPL boundary is enforced by packaging, not only by process separation. | ch. 5 | settled |
+| C5 | MaaFramework ships as its own distribution (`services/maa_service`, separate venv), so the LGPL boundary is enforced by packaging, not only by process separation. | ch. 5 | proposed (W5; directory reserved with .gitkeep) |
 | C6 | Dependency direction is enforced by import-linter; every third-party library is imported by exactly one adapter module. | ch. 4A | settled |
-| C7 | The ESP32 wire protocol and the farm-to-Maa message surface are specified in `protocol/` with golden test vectors. | ch. 4A | settled (serial); Maa spec due W5 |
+| C7 | The ESP32 wire protocol and the farm-to-Maa message surface are specified in `protocol/` with golden test vectors. | ch. 4A | proposed (serial due W2, Maa spec due W5; directory reserved with .gitkeep) |
 | C8 | Two seat classes: standard (ESP32 HID + UVC capture, most phones) and ADB-only (ADB control + screencap, a minority). Phones without video out are valid seats. | ch. 2 | proposed |
 | C9 | `CaptureSource` gains a second implementation, ADB screencap, with a latency caveat against the 300 to 500 ms budget (unmeasured). | ch. 4, ch. 9 | proposed |
 | C10 | Coordinates are normalized at the contract level; each backend owns its conversion to device units. | ch. 2, ch. 4 | settled in contracts (Action, Region, Match); backend conversion pending W2 and W3 |
@@ -34,6 +34,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C19 | Seat contract models in `contracts/seats.py`: roles (hid_controller, capture_card, phone), by-id/by-path `DeviceMatch`, `SeatSpec`, `SeatTable` enrollment with uniqueness rules, and `SeatState`/`SeatChange`. C8 stays proposed until registry resolution and C9 land. | ch. 2.1, ch. 4.2, Table 5 #2 | settled (models); resolution pending |
 | C20 | Registry slice: `ProfileStore` (enrollment, duplicate-id rejection) and `SeatRegistry`, which resolves `DeviceEvent` streams against a `SeatTable` into `SeatState`/`SeatChange` transitions using per-role device claims. Virtual attach/detach runs on a fake udev feed in CI. | ch. 4.2, ch. 8, Table 5 #2 | settled |
 | C21 | Day-5 dual-client test: the same labelled frame corpus drives `FakeInputBackend` and a stub of Maa's custom-controller callbacks, asserting equivalent actions. The stub imports no `maafw` (C5). Corpus is synthetic pending recorded footage (R9). | D6, ch. 5.1, ch. 8, W1 | settled (shape); corpus provisional |
+| C22 | Four CI gates now run: ruff, mypy, lint-imports and pytest. A zero-byte tracked-file test replaces the empty scaffold placeholders with `.gitkeep` markers, and C5/C7 are re-tagged `proposed` because their files belong to W2/W5. | ch. 4.3, ch. 8, PDF recs 3-5 | settled |
 
 **Open items carried forward**
 
