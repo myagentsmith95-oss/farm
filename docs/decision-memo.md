@@ -1,8 +1,8 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.2
-**Supersedes:** ADF-DEC-V1.1 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
-**Revision date:** November 15, 2026
+**Document:** DOC ADF-DEC-V1.3
+**Supersedes:** ADF-DEC-V1.2 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Revision date:** November 18, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
 ---
@@ -31,6 +31,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C16 | The `DeviceEvent` seam is carried by a `DeviceEventSource` interface (blocking `events()`, `close()`), with USB vendor and product ids validated as four lowercase hex digits. Distinct from the `Event` log model. | ch. 4.1 | settled |
 | C17 | Every seam has a reusable contract suite run against its fake and, later, against the real adapter, so a fake cannot drift from reality unnoticed. | ch. 4.1 | settled |
 | C18 | Contract models in code: `DeviceProfile` (device id, ordered non-empty duplicate-free input modes), `Frame` (monotonic capture timestamp, source kind, encoded payload as bytes, to be revisited after the W3 measurements) and `Action` (Tap, Swipe, Key, Text in normalized coordinates, no device id). | ch. 2, ch. 4 | settled |
+| C19 | Seat contract models in `contracts/seats.py`: roles (hid_controller, capture_card, phone), by-id/by-path `DeviceMatch`, `SeatSpec`, `SeatTable` enrollment with uniqueness rules, and `SeatState`/`SeatChange`. C8 stays proposed until registry resolution and C9 land. | ch. 2.1, ch. 4.2, Table 5 #2 | settled (models); resolution pending |
 
 **Open items carried forward**
 
@@ -41,6 +42,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | O3 | The feature-by-feature mapping behind the 55 / 10 / 35 split (which of the 20 features sit in which bucket) is not listed. | open |
 | O4 | ADB-only seats: measure screencap latency in W3 and decide whether those seats get a looser budget or a lower cycle rate. | open, W3 |
 | O5 | Share of ADB-only seats among the fifty, and whether they ever also get an ESP32 and capture card as a fallback. | open |
+| O6 | Seat resolution from DeviceEvents, inventory and firmware/protocol versions at handshake are not implemented; ADB screencap (C9) stays proposed until W3. | open, before registry slice |
 
 ---
 
