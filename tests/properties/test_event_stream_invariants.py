@@ -1,5 +1,6 @@
 """Stream discipline: seq is gapless from 1 and ts_ns never decreases."""
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from farm.contracts.event_log import Event
 from farm.testing.invariants import check_stream

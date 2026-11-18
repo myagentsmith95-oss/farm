@@ -1,6 +1,7 @@
 """Region, Match and TextHit: normalized (0 to 1) results from vision."""
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 from pydantic import ValidationError
 
 from farm.contracts.matching import Match, Region, TextHit
