@@ -20,7 +20,20 @@ from farm.contracts.seats import (
 
 @dataclass(frozen=True)
 class _Identity:
-    """Which device occupies a role. Timestamps and event kind are not identity."""
+    """Which device occupies a role. Timestamps and event kind are not identity.
+
+    All three identifier fields are part of identity. by_id alone would cover
+    most devices, but a capture card with no unique serial is matched by
+    by_path: two different cards appearing at the same port must be
+    distinguishable, so by_id (and serial when reported) are included too.
+
+    Caveat: if a source reports the same device with inconsistent optional
+    fields -- one event with by_path=None, the next with a path -- the two are
+    treated as different claimants and the role goes to CONFLICT. udev normally
+    reports these consistently. If a real adapter proves otherwise, normalise
+    the identity in that adapter at the seam; do not relax it here, where it
+    would also hide genuine port collisions.
+    """
 
     by_id: str
     by_path: str | None
