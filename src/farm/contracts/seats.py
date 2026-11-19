@@ -3,7 +3,7 @@
 A seat is one phone plus the hardware around it. The registry (inventory, not
 leases) matches attach and detach events against an enrollment table of
 SeatSpecs. Roles name the hardware, not the function: a seat that lists hid
-input needs a hid_controller, one that lists adb input needs a phone.
+input needs a hid_board, one that lists adb input needs a phone.
 """
 from enum import StrEnum
 from typing import Annotated
@@ -23,7 +23,7 @@ class _Model(BaseModel):
 class DeviceRole(StrEnum):
     """The physical thing that must be recognised at a seat."""
 
-    HID_CONTROLLER = "hid_controller"  # ESP32-S3 USB HID board
+    HID_BOARD = "hid_board"  # ESP32-S3 USB HID board
     CAPTURE_CARD = "capture_card"  # UVC / HDMI capture card
     PHONE = "phone"  # the phone itself, for the ADB path
 
@@ -70,8 +70,8 @@ class SeatSpec(_Model):
     @model_validator(mode="after")
     def _roles_support_input_modes(self):
         modes = self.profile.input_modes
-        if InputMode.HID in modes and DeviceRole.HID_CONTROLLER not in self.devices:
-            raise ValueError("hid input needs a hid_controller device")
+        if InputMode.HID in modes and DeviceRole.HID_BOARD not in self.devices:
+            raise ValueError("hid input needs a hid_board device")
         if InputMode.ADB in modes and DeviceRole.PHONE not in self.devices:
             raise ValueError("adb input needs a phone device")
         return self

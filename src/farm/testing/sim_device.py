@@ -14,7 +14,7 @@ from farm.testing.events import FakeDeviceEventSource
 
 # Plausible udev identities. Four lowercase hex digits, as DeviceEvent requires.
 _USB_IDS = {
-    DeviceRole.HID_CONTROLLER: ("303a", "1001"),  # ESP32-S3
+    DeviceRole.HID_BOARD: ("303a", "1001"),  # ESP32-S3
     DeviceRole.CAPTURE_CARD: ("1d6b", "0002"),
     DeviceRole.PHONE: ("18d1", "4e40"),
 }

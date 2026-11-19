@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.7
-**Supersedes:** ADF-DEC-V1.6 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.8
+**Supersedes:** ADF-DEC-V1.7 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 18, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -31,11 +31,12 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C16 | The `DeviceEvent` seam is carried by a `DeviceEventSource` interface (blocking `events()`, `close()`), with USB vendor and product ids validated as four lowercase hex digits. Distinct from the `Event` log model. | ch. 4.1 | settled |
 | C17 | Every seam has a reusable contract suite run against its fake and, later, against the real adapter, so a fake cannot drift from reality unnoticed. | ch. 4.1 | settled |
 | C18 | Contract models in code: `DeviceProfile` (device id, ordered non-empty duplicate-free input modes), `Frame` (monotonic capture timestamp, source kind, encoded payload as bytes, to be revisited after the W3 measurements) and `Action` (Tap, Swipe, Key, Text in normalized coordinates, no device id). | ch. 2, ch. 4 | settled |
-| C19 | Seat contract models in `contracts/seats.py`: roles (hid_controller, capture_card, phone), by-id/by-path `DeviceMatch`, `SeatSpec`, `SeatTable` enrollment with uniqueness rules, and `SeatState`/`SeatChange`. C8 stays proposed until registry resolution and C9 land. | ch. 2.1, ch. 4.2, Table 5 #2 | settled (models); resolution pending |
+| C19 | Seat contract models in `contracts/seats.py`: roles (hid_board, capture_card, phone), by-id/by-path `DeviceMatch`, `SeatSpec`, `SeatTable` enrollment with uniqueness rules, and `SeatState`/`SeatChange`. C8 stays proposed until registry resolution and C9 land. | ch. 2.1, ch. 4.2, Table 5 #2 | settled (models); resolution pending |
 | C20 | Registry slice: `ProfileStore` (enrollment, duplicate-id rejection) and `SeatRegistry`, which resolves `DeviceEvent` streams against a `SeatTable` into `SeatState`/`SeatChange` transitions using per-role device claims. Virtual attach/detach runs on a fake udev feed in CI. | ch. 4.2, ch. 8, Table 5 #2 | settled |
 | C21 | Day-5 dual-client test: the same labelled frame corpus drives `FakeInputBackend` and a stub of Maa's custom-controller callbacks, asserting equivalent actions. The stub imports no `maafw` (C5). Corpus is synthetic pending recorded footage (R9). | D6, ch. 5.1, ch. 8, W1 | settled (shape); corpus provisional |
 | C22 | Four CI gates now run: ruff, mypy, lint-imports and pytest. A zero-byte tracked-file test replaces the empty scaffold placeholders with `.gitkeep` markers, and C5/C7 are re-tagged `proposed` because their files belong to W2/W5. | ch. 4.3, ch. 8, PDF recs 3-5 | settled |
 | C23 | Sim core (`farm.testing.SimDevice`): a virtual seat emits udev-shaped `DeviceEvent`s with monotonic timestamps through a real `DeviceEventSource`; the production `SeatRegistry` drives virtual attach/detach in CI. This closes the W1 exit demo. | ch. 8 (days 6-7), W1 | settled |
+| C24 | Renamed `DeviceRole.HID_CONTROLLER` to `HID_BOARD` (`"hid_board"`). Roles name physical hardware; "controller" collided with MaaFramework's custom-controller callback API. No serialized data exists yet, so the value change needs no migration. | ch. 4.1, Table 4 | settled |
 
 **Open items carried forward**
 

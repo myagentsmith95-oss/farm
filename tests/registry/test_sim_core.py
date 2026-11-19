@@ -14,7 +14,7 @@ from farm.registry import SeatRegistry
 from farm.testing.clock import FakeClock
 from farm.testing.sim_device import SimDevice
 
-HID = DeviceRole.HID_CONTROLLER
+HID = DeviceRole.HID_BOARD
 CARD = DeviceRole.CAPTURE_CARD
 PHONE = DeviceRole.PHONE
 

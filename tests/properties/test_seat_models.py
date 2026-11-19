@@ -16,7 +16,7 @@ from farm.contracts.seats import (
     SeatTable,
 )
 
-HID = DeviceRole.HID_CONTROLLER
+HID = DeviceRole.HID_BOARD
 CARD = DeviceRole.CAPTURE_CARD
 PHONE = DeviceRole.PHONE
 
@@ -148,7 +148,7 @@ def test_spec_seat_id_is_the_profile_device_id():
     assert spec.seat_id == "seat-07"
 
 
-def test_spec_rejects_hid_mode_without_a_hid_controller():
+def test_spec_rejects_hid_mode_without_a_hid_board():
     with pytest.raises(ValidationError):
         SeatSpec(profile=profile(), devices={CARD: DeviceMatch(by_path="p1")})
 
@@ -172,7 +172,7 @@ def test_spec_rejects_unknown_role():
 
 
 def test_spec_accepts_role_names_as_strings():
-    spec = SeatSpec(profile=profile(), devices={"hid_controller": DeviceMatch(by_id="x")})
+    spec = SeatSpec(profile=profile(), devices={"hid_board": DeviceMatch(by_id="x")})
     assert HID in spec.devices
 
 
@@ -238,7 +238,7 @@ def test_table_rejects_a_by_id_used_twice_within_one_seat():
 # ---- Roles, status, state, change ------------------------------------------
 
 def test_role_values():
-    assert [r.value for r in DeviceRole] == ["hid_controller", "capture_card", "phone"]
+    assert [r.value for r in DeviceRole] == ["hid_board", "capture_card", "phone"]
 
 
 def test_seat_status_values():
