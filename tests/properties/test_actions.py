@@ -1,6 +1,7 @@
 """Action invariants: coordinates are normalized (0 to 1), kinds are tagged."""
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 from pydantic import TypeAdapter, ValidationError
 
 from farm.contracts.actions import Action, Key, Swipe, Tap, Text

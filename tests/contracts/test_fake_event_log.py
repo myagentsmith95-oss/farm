@@ -1,5 +1,6 @@
 from event_log_suite import EventLogContract, EventLogRig
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from farm.testing.clock import FakeClock
 from farm.testing.event_log import FakeEventLog

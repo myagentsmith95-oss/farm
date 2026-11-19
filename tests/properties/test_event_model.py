@@ -1,6 +1,7 @@
 """Event log model: seq and ts_ns, a dotted kind, optional device, JSON data."""
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 from pydantic import ValidationError
 
 from farm.contracts.event_log import Event

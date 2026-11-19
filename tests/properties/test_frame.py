@@ -1,6 +1,7 @@
 """Frame invariants: metadata is validated, pixels are not interpreted."""
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 from pydantic import ValidationError
 
 from farm.contracts.frame import Frame, FrameSource

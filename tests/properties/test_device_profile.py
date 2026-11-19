@@ -4,7 +4,8 @@ Rules: a profile needs a non-empty device_id and a non-empty, duplicate-free,
 ordered list of input modes. Order is the preference order.
 """
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 from pydantic import ValidationError
 
 from farm.contracts.models import DeviceProfile, InputMode

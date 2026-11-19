@@ -1,10 +1,19 @@
 """Seat resolution: DeviceEvents -> SeatState transitions."""
 import pytest
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from farm.contracts.events import DeviceEvent, DeviceEventKind, DeviceEventSource
 from farm.contracts.models import DeviceProfile, InputMode
-from farm.contracts.seats import DeviceMatch, DeviceRole, SeatChange, SeatSpec, SeatState, SeatStatus, SeatTable
+from farm.contracts.seats import (
+    DeviceMatch,
+    DeviceRole,
+    SeatChange,
+    SeatSpec,
+    SeatState,
+    SeatStatus,
+    SeatTable,
+)
 from farm.registry import SeatRegistry, resolve_all
 
 
