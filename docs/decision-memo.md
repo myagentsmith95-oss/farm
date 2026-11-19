@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.6
-**Supersedes:** ADF-DEC-V1.5 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.7
+**Supersedes:** ADF-DEC-V1.6 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 18, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -35,6 +35,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C20 | Registry slice: `ProfileStore` (enrollment, duplicate-id rejection) and `SeatRegistry`, which resolves `DeviceEvent` streams against a `SeatTable` into `SeatState`/`SeatChange` transitions using per-role device claims. Virtual attach/detach runs on a fake udev feed in CI. | ch. 4.2, ch. 8, Table 5 #2 | settled |
 | C21 | Day-5 dual-client test: the same labelled frame corpus drives `FakeInputBackend` and a stub of Maa's custom-controller callbacks, asserting equivalent actions. The stub imports no `maafw` (C5). Corpus is synthetic pending recorded footage (R9). | D6, ch. 5.1, ch. 8, W1 | settled (shape); corpus provisional |
 | C22 | Four CI gates now run: ruff, mypy, lint-imports and pytest. A zero-byte tracked-file test replaces the empty scaffold placeholders with `.gitkeep` markers, and C5/C7 are re-tagged `proposed` because their files belong to W2/W5. | ch. 4.3, ch. 8, PDF recs 3-5 | settled |
+| C23 | Sim core (`farm.testing.SimDevice`): a virtual seat emits udev-shaped `DeviceEvent`s with monotonic timestamps through a real `DeviceEventSource`; the production `SeatRegistry` drives virtual attach/detach in CI. This closes the W1 exit demo. | ch. 8 (days 6-7), W1 | settled |
 
 **Open items carried forward**
 
