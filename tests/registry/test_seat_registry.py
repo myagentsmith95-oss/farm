@@ -25,7 +25,7 @@ def state(seat, status, present=frozenset(), conflicted=frozenset()):
     return SeatState(seat_id=seat, status=status, present=present, conflicted=conflicted)
 
 
-HID = DeviceRole.HID_CONTROLLER
+HID = DeviceRole.HID_BOARD
 CARD = DeviceRole.CAPTURE_CARD
 PHONE = DeviceRole.PHONE
 
