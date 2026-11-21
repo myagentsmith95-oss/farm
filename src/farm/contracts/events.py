@@ -3,7 +3,9 @@
 PROVISIONAL: revisit when the pyudev adapter is written (W1 registry). Not to
 be confused with the Event log model (seq and ts), which is a separate type.
 A source's events() blocks while the source is open and ends after close();
-events observed before close() are still delivered, in order.
+events observed before close() are still delivered, in order. A source must
+also enumerate already-present devices at iteration start (coldplug) — see
+DeviceEventSource.events().
 """
 from collections.abc import Iterator
 from enum import StrEnum
@@ -35,7 +37,13 @@ class DeviceEvent(BaseModel):
 @runtime_checkable
 class DeviceEventSource(Protocol):
     def events(self) -> Iterator[DeviceEvent]:
-        """Device events in the order observed."""
+        """Device events in the order observed.
+
+        Coldplug: when iteration begins, yield a synthetic ATTACHED event for
+        every already-present matching device, in a stable order, before any
+        live change event. A host restart with all devices still plugged in
+        must reach the same state as a fresh plug sequence.
+        """
         ...
 
     def close(self) -> None:

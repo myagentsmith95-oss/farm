@@ -23,11 +23,20 @@ _USB_IDS = {
 class SimDevice:
     """One enrolled seat whose devices can appear and disappear from the bus."""
 
-    def __init__(self, spec: SeatSpec, clock: FakeClock | None = None) -> None:
+    def __init__(
+        self,
+        spec: SeatSpec,
+        clock: FakeClock | None = None,
+        present: Iterable[DeviceRole] | None = None,
+    ) -> None:
+        """`present` lists roles already attached at construction, for the
+        host-restart (coldplug) scenario."""
         self.spec = spec
         self._clock = clock or FakeClock()
         self._source = FakeDeviceEventSource()
         self._attached: dict[DeviceRole, DeviceEvent] = {}
+        if present is not None:
+            self.attach(present)
 
     @property
     def source(self) -> DeviceEventSource:
