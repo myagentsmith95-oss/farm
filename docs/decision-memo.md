@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.11
-**Supersedes:** ADF-DEC-V1.10 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.12
+**Supersedes:** ADF-DEC-V1.11 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 21, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -42,6 +42,9 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C27 | R1 (review v4): a DETACH releases every claim for the same device across all roles and both claim dictionaries, using identifier agreement where both reports supply a field. An asymmetric detach — fewer matched roles or an omitted optional identifier — can no longer wedge a seat in CONFLICT; a genuinely different claimant is still left alone. | ch. 4.2, Table 5 #2 | settled |
 | C28 | R2/R3 (review v4): role requirements are per mode — HID needs both `HID_BOARD` and `CAPTURE_CARD`, ADB needs `PHONE` — and `ready_modes` requires all of them, so a board without a capture card is not schedulable. A CONFLICT removes only the modes whose required roles are conflicted; `SeatState` documents that schedulers must consult `ready_modes`, not `status` alone. The registry test helper now takes `ready_modes` as an explicit literal rather than re-deriving production's formula. | ch. 2.1, ch. 4.2 | settled |
 | C29 | N1 (reviews v2 and v4): `DeviceEventSource.events()` must yield a synthetic ATTACHED event for every already-present matching device at iteration start, before live changes (coldplug), so a restarted host discovers its plugged-in seats. The reusable event-source suite pins that ordering, and `SimDevice` gains a `present` mode that drives the production registry to READY without a new physical plug. The real pyudev adapter implements enumeration in W2. | ch. 4.1, ch. 8, C17 | settled (contract + suite); adapter due W2 |
+| C30 | CR-6 (review v4, corrected): `EventLog.since()` returns deep copies, so a consumer editing a result cannot change the stored log. `append()` already copied its mapping, and pydantic copied nested values, so no change was needed there. | ch. 6, C17 | settled |
+| C31 | CR-2 (review v4, amended): `MODE_ROLES` lives once in `contracts/seats.py` and is shared by enrollment and readiness. Enrollment accepts a seat when at least one declared mode has all its required roles, rather than requiring every mode — a dual-mode seat with no capture card remains a valid ADB seat. A board-only HID seat is rejected. | ch. 2.1, ch. 4.2, C19/C28 | settled |
+| C32 | CR-3 (review v4, amended): every physical device gets a stable `by_id` unique to it; serial-less devices such as UVC cards get a synthesized `vendor:product` + USB port path, owned by the udev adapter at the seam. On DETACH, a lone matching claim is released even with omitted optional fields (C27), but when several claims match only an exact field-for-field match is released; otherwise the seat stays CONFLICT until such a detach arrives. | ch. 2.1, ch. 4.1, Table 5 #2 | settled |
 
 **Open items carried forward**
 
@@ -103,6 +106,8 @@ Phones differ in what they accept, so a seat is one of two classes:
 - Some phones cannot feed a capture card or do not accept HID. They remain valid seats through ADB control and ADB screencap.
 - A phone may support both backends. Its `DeviceProfile` then holds an ordered preference list; the first usable entry is tried first and the other serves as fallback. Only one backend is active at a time, and the lease enforces it.
 - A manually operated seat is an operator concern (the dashboard's manual-control path, week 8), not a backend and not an entry in a preference list.
+
+**Device identity (C32).** Every physical device has a stable `by_id` that is unique to it. Devices without a serial, such as a UVC capture card, get a synthesized id from `vendor:product` plus the physical USB port path; the udev adapter owns that synthesis at the seam. Because ids never collide between physical devices, a detach carrying only `by_id` normally identifies one claimant. The registry still guards the ambiguous case: if several claims match, only an exact field-for-field match is released.
 
 Everything above the seams is shared by both classes: vision (matching and OCR), scenarios, queue, retries, leases, the event log and the console.
 
