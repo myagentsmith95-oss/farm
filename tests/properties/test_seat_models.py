@@ -249,6 +249,16 @@ def test_state_defaults_to_no_devices():
     state = SeatState(seat_id="seat-01", status=SeatStatus.ABSENT)
     assert state.present == frozenset()
     assert state.conflicted == frozenset()
+    assert state.ready_modes == frozenset()
+
+
+def test_state_accepts_ready_modes():
+    state = SeatState(
+        seat_id="seat-01",
+        status=SeatStatus.PARTIAL,
+        ready_modes=frozenset({InputMode.ADB}),
+    )
+    assert state.ready_modes == frozenset({InputMode.ADB})
 
 
 def test_state_rejects_blank_seat_id():
