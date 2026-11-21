@@ -1,8 +1,7 @@
-from input_backend_suite import SAMPLE_ACTIONS, InputBackendContract
-
 from farm.contracts.actions import Swipe, Tap
 from farm.contracts.models import InputMode
 from farm.testing.input import FakeInputBackend
+from tests.contracts.input_backend_suite import SAMPLE_ACTIONS, InputBackendContract
 
 
 class TestFakeInputBackendFull(InputBackendContract):

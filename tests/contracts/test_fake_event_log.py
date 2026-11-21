@@ -1,10 +1,10 @@
-from event_log_suite import EventLogContract, EventLogRig
 from hypothesis import given
 from hypothesis import strategies as st
 
 from farm.testing.clock import FakeClock
 from farm.testing.event_log import FakeEventLog
 from farm.testing.invariants import check_stream
+from tests.contracts.event_log_suite import EventLogContract, EventLogRig
 
 
 class TestFakeEventLog(EventLogContract):

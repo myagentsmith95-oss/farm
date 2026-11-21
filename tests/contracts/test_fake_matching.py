@@ -1,4 +1,6 @@
-from matching_suite import (
+from farm.contracts.matching import Match, Region, TextHit
+from farm.testing.matching import FakeMatcher, FakeOcrEngine, FakeSettleChecker
+from tests.contracts.matching_suite import (
     MatcherContract,
     MatcherRig,
     OcrContract,
@@ -7,9 +9,6 @@ from matching_suite import (
     SettleRig,
     make_frame,
 )
-
-from farm.contracts.matching import Match, Region, TextHit
-from farm.testing.matching import FakeMatcher, FakeOcrEngine, FakeSettleChecker
 
 BUTTON = Region(x=0.3, y=0.3, width=0.2, height=0.2)
 FAR = Region(x=0.6, y=0.6, width=0.3, height=0.3)

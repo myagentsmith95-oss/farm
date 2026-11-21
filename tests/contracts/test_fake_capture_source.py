@@ -1,10 +1,10 @@
 import pytest
-from capture_source_suite import CaptureSourceContract, Rig
 
 from farm.contracts.errors import CaptureError
 from farm.contracts.frame import FrameSource
 from farm.testing.capture import FakeCaptureSource
 from farm.testing.clock import FakeClock
+from tests.contracts.capture_source_suite import CaptureSourceContract, Rig
 
 
 def build_rig(kind: FrameSource) -> Rig:
