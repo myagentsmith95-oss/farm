@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.19
-**Supersedes:** ADF-DEC-V1.18 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.20
+**Supersedes:** ADF-DEC-V1.19 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 22, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -52,6 +52,9 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C37 | CR-5 (Task 5): `FakeDeviceEventSource` has a separate preload list; `events()` yields coldplug devices in preload order before any live event, and `close()` seals the feed (buffered events still drain; later `push`/`preload` are ignored). The reusable suite pins ordering, post-close drops, and preload+detach; an anti-vacuity check proved the ordering test fails when preload is aliased to push. The seal is a fake determinism choice, documented as such; real adapters manage their own lifetime. | ch. 4.1, C17, C29 | settled |
 | C38 | CR-4 (Task 4): `LeaseManager.is_valid()` now states that it checks the **current grant's** expiry, not the snapshot's own `expires_ns`. `renew()` extends the grant for every same-token snapshot, so a pre-renew lease stays valid until the renewed grant expires. The reusable suite pins this behavior and the docstring. | ch. 4.1, C15 | settled |
 | C39 | CR-6 (Task 6): `DeviceProfile.input_modes` and `SeatTable.seats` are tuples, so a frozen model cannot be edited through a mutable list. `SeatRegistry` deep-copies the enrollment table at construction, and `FakeEventLog` deep-copies `data` on append (with `since()` already returning deep copies), so neither can be changed through a caller's nested data. `SeatSpec.devices` stays an unfrozen dict for now; its wrapping cost is revisited with retention at W9 (N8). | ch. 4.1, ch. 6, C18/C19 | settled |
+| C40 | Task 9: `mypy` strict mode is on and clean; dev dependencies have upper bounds, `actions/checkout` and `actions/setup-python` are SHA-pinned, and CI runs a Python 3.11 + 3.12 matrix with a 15-minute timeout. | ch. 4.3, ch. 8 | settled |
+| C41 | Task 10: README documents purpose, layout, setup, the five gates and the memo links; reviews v1/v3/v4 are committed as markdown summaries (PDFs stay local per `.gitignore`); `HANDOFF.md` is gone; `repo_audit.sh` EXPECTED covers every tracked path including the 14 `.gitkeep` markers, so drift is zero. No LICENSE file is committed by owner decision — the gap is recorded in O9. | ch. 4.3, F6 | settled (LICENSE gap recorded) |
+| C42 | CR-8/CR-7b (Task 11): `CaptureSource.latest(max_age_ms)` rejects negative values with `ValueError`; `latest(0)` still accepts a frame stamped at the current clock. `SimDevice.attach()` validates the entire role batch before attaching any, so a rejected batch leaves no queued event and no partial state. | ch. 4.1, ch. 4.2 | settled |
 
 **Open items carried forward**
 
@@ -65,7 +68,15 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | O6 | Firmware/protocol versions at handshake are not recorded, and ADB screencap (C9) stays proposed until W3. Seat resolution and the profile store landed with C20. | open (W3/W5 follow-up) |
 | O7 | The dual-client test uses synthetic labelled frames; replace with recorded footage from target phones before the W5 probe (R9). | open, before W5 |
 | O8 | Task 13: composite keyboard + consumer firmware, heartbeat/STOP/dedup, version banner, golden vectors, and the architecture §15 no-ADB acceptance checklist. Owner TBD, W2. | open, W2 |
-| O9 | LICENSE for the farm and the experiments repository is still undecided. | open, owner: user |
+| O9 | No LICENSE file is committed by owner decision (22 November 2026). The farm and experiments repositories remain unlicensed until a choice is made; this is a known gap, not an oversight. | open, owner: user |
+| O10 | N5: document that `Frame.captured_ns` is host arrival time; measure content-to-input latency for ADB screencap (ties O4/R10). | open, W3 |
+| O11 | N6: lease-proxy locality note on the `LeaseManager` seam and a `worker_ipc.md` spec under C7 before the runner. | open, W4 |
+| O12 | N7: single owner for enrollment plus persistence; wire `app.py` when the first adapter lands. | open, W2 |
+| O13 | N8: event-log retention policy; restate gapless-from-1 as gapless within the retained window. | open, W7 |
+| O14 | N9: state that fencing tokens are monotonic per supervisor lifetime and equality-based validity is restart-safe. | open, W7 |
+| O15 | N10: registry concurrency model (confine to supervisor thread + lock when the udev listener lands). | open, W2/W8 |
+| O16 | CR-7: give `SimDevice` a serial-less capture-card mode for the coldplug/restart scenario. | open, W2 |
+| O17 | CR-10: referenced by `FIX_TASKS.md` v2 but not defined in the available reviews; definition must be recovered from the audit workspace before it can be closed. | open, owner: audit |
 
 ---
 
