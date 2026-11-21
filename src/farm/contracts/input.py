@@ -2,7 +2,9 @@
 
 One backend per device and mode. Backends never see leases: the InputRouter
 checks the lease before calling perform(). Actions use normalized coordinates;
-each backend converts to its own units.
+each backend converts to its own units. Key actions carry a canonical KeyCode;
+each adapter maps it to its own key language (HID usage IDs, Android keycodes)
+and raises UnsupportedAction for keys it cannot map.
 """
 from typing import Protocol, runtime_checkable
 
@@ -19,8 +21,11 @@ class InputBackend(Protocol):
         ...
 
     def perform(self, action: Action) -> None:
-        """Carry out the action. Raises InputError if closed or injection fails,
-        UnsupportedAction if supports(action) is False."""
+        """Carry out the action. Blocks until it is fully injected; for Swipe,
+        until the gesture completes. A backend that cannot block must document
+        its own completion semantics. Raises InputError if closed or injection
+        fails, UnsupportedAction if supports(action) is False or a canonical
+        key cannot be mapped."""
         ...
 
     def close(self) -> None:

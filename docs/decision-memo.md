@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.14
-**Supersedes:** ADF-DEC-V1.13 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.15
+**Supersedes:** ADF-DEC-V1.14 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 21, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -47,6 +47,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C32 | CR-3 (review v4, amended): every physical device gets a stable `by_id` unique to it; serial-less devices such as UVC cards get a synthesized `vendor:product` + USB port path, owned by the udev adapter at the seam. On DETACH, a lone matching claim is released even with omitted optional fields (C27), but when several claims match only an exact field-for-field match is released; otherwise the seat stays CONFLICT until such a detach arrives. | ch. 2.1, ch. 4.1, Table 5 #2 | settled |
 | C33 | CR-1 (review v4): `SeatChange` now carries `ready_modes_before` and `ready_modes_after` (default empty), and `apply()` emits a change when the usable mode set changes even if `SeatStatus` does not. A scheduler consuming the change stream can no longer miss a fallback becoming usable or disappearing. The three-field construction stays valid. | ch. 4.2, ch. 6, C26 | settled |
 | C34 | CR-9 (review v4): `tests/` and `tests/contracts/` are packages and all five fake suites import their suites as `tests.contracts.<suite>`. The same tests now collect under pytest's default prepend mode and under `--import-mode=importlib`, so the W2 adapter tests can reuse the suites from any directory. An AST guard rejects bare suite imports; `repo_audit.sh` EXPECTED covers the new files. | ch. 4.1, C17 | settled |
+| C35 | N3/N4, amended by `docs/ARCHITECTURE.md` §4.4 / D-4 / D-7: `Key.code` is a canonical `KeyCode` StrEnum with exactly five values — `HOME`, `BACK`, `ENTER`, `DEL`, `APP_SWITCH`. HOME/BACK map to consumer usages 0x223/0x224 in composite firmware, ENTER/DEL to keyboard usages 0x28/0x2A; APP_SWITCH has no HID usage, so the HID backend reports `supports() == False` and scenarios use a touch macro or ADB keycode 187. Power, volume and mute are out of scope (D-4). Uppercase values keep existing `Key(code="HOME")` scenarios working. `InputBackend.perform()` blocks until full injection, and for Swipe until the gesture completes; the Maa stub records the canonical string and notes that real Maa's W6 adapter owns the integer-keycode mapping. | ch. 2.1, ch. 4.1, D6, D-4, D-7 | settled |
 
 **Open items carried forward**
 
