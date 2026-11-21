@@ -7,7 +7,8 @@ farm's seams and Maa's controller are interchangeable.
 
 Coordinates are normalized (0..1) here, as in farm.contracts.actions. The
 real week-six adapter owns the conversion to device pixels, like every
-other backend.
+other backend. press_key here records the canonical KeyCode string; real Maa
+takes an integer keycode, so the W6 adapter owns that mapping too.
 """
 from collections.abc import Iterable
 
