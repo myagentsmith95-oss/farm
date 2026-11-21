@@ -48,7 +48,9 @@ src/farm/testing/lease.py src/farm/testing/event_log.py src/farm/testing/maa_stu
 src/farm/adapters/__init__.py src/farm/registry/__init__.py src/farm/registry/profiles.py src/farm/registry/seats.py src/farm/calibration/__init__.py
 src/farm/capture/__init__.py src/farm/control/__init__.py src/farm/runner/__init__.py
 src/farm/vision/__init__.py src/farm/console/__init__.py src/farm/console/views/__init__.py
+tests/__init__.py tests/contracts/__init__.py
 tests/test_contracts_purity.py tests/d6_day5_dual_client_test.py tests/test_no_empty_placeholders.py
+tests/test_contract_suite_imports.py
 tests/properties/test_device_profile.py tests/properties/test_actions.py tests/properties/test_frame.py
 tests/properties/test_matching_models.py tests/properties/test_events_lease_models.py
 tests/properties/test_event_model.py tests/properties/test_event_stream_invariants.py

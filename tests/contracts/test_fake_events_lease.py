@@ -1,9 +1,8 @@
-from events_suite import EventRig, EventSourceContract
-from lease_suite import LeaseManagerContract, LeaseRig
-
 from farm.testing.clock import FakeClock
 from farm.testing.events import FakeDeviceEventSource
 from farm.testing.lease import FakeLeaseManager
+from tests.contracts.events_suite import EventRig, EventSourceContract
+from tests.contracts.lease_suite import LeaseManagerContract, LeaseRig
 
 
 class TestFakeDeviceEventSource(EventSourceContract):
