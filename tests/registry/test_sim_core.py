@@ -175,6 +175,20 @@ def test_attach_twice_is_rejected():
         sim.attach([HID])
 
 
+def test_failed_attach_is_atomic():
+    # CR-7b: validate every role before attaching any, so a rejected batch
+    # leaves neither queued events nor partial state behind.
+    sim = SimDevice(standard())
+    sim.attach([CARD])
+    assert len(list(sim.source.events())) == 1  # drain the successful attach
+
+    with pytest.raises(ValueError):
+        sim.attach([HID, CARD])  # CARD is already attached
+
+    assert list(sim.source.events()) == []
+    assert len(sim.detach()) == 1  # only the original CARD was ever attached
+
+
 def test_unknown_role_is_rejected():
     sim = SimDevice(standard())
     with pytest.raises(KeyError):

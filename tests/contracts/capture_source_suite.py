@@ -6,6 +6,8 @@ freshness is testable. Rules:
 - latest() before start() or after close() raises CaptureError
 - no frame yet, or a frame older than max_age_ms, raises StaleFrame
 - a frame is fresh while its age is <= max_age_ms (boundary included)
+- a negative max_age_ms raises ValueError; latest(0) still accepts a frame
+  stamped at the current clock
 - latest() returns the newest frame; close() is idempotent
 """
 from collections.abc import Callable
@@ -86,6 +88,18 @@ class CaptureSourceContract:
         newest = frame_at(rig.source.source, rig.clock.now_ns())
         rig.feed(newest)
         assert rig.source.latest(1000) == newest
+
+    def test_negative_max_age_is_rejected(self, rig):
+        rig.source.start()
+        rig.feed(frame_at(rig.source.source, rig.clock.now_ns()))
+        with pytest.raises(ValueError):
+            rig.source.latest(-5)
+
+    def test_zero_max_age_accepts_a_frame_stamped_now(self, rig):
+        rig.source.start()
+        frame = frame_at(rig.source.source, rig.clock.now_ns())
+        rig.feed(frame)
+        assert rig.source.latest(0) == frame
 
     def test_latest_after_close_raises_capture_error(self, rig):
         rig.source.start()
