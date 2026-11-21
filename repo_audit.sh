@@ -36,7 +36,7 @@ echo
 echo "== 2. Expected files (present and tracked)"
 EXPECTED="
 pyproject.toml .importlinter .gitignore README.md .github/workflows/ci.yml
-docs/decision-memo.md
+docs/decision-memo.md docs/ARCHITECTURE.md
 src/farm/__init__.py src/farm/app.py
 src/farm/contracts/__init__.py src/farm/contracts/models.py src/farm/contracts/actions.py
 src/farm/contracts/frame.py src/farm/contracts/errors.py src/farm/contracts/input.py
