@@ -9,7 +9,7 @@ from farm.testing.lease import FakeLeaseManager
 class TestFakeDeviceEventSource(EventSourceContract):
     def make_rig(self):
         source = FakeDeviceEventSource()
-        return EventRig(source=source, feed=source.push)
+        return EventRig(source=source, feed=source.push, preload=source.push)
 
 
 class TestFakeLeaseManager(LeaseManagerContract):
