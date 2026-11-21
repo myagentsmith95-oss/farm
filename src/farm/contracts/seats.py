@@ -124,12 +124,18 @@ class SeatState(_Model):
 
 
 class SeatChange(_Model):
+    """One observable seat transition. A status that does not move can still be
+    a change when the set of usable input modes does. Consumers (the scheduler,
+    the event stream) must read the mode fields, not just before/after status."""
+
     seat_id: NonBlank
     before: SeatStatus
     after: SeatStatus
+    ready_modes_before: frozenset[InputMode] = frozenset()
+    ready_modes_after: frozenset[InputMode] = frozenset()
 
     @model_validator(mode="after")
-    def _is_a_real_change(self):
-        if self.before == self.after:
-            raise ValueError("a change must move the seat to a different status")
+    def _is_a_real_change(self) -> "SeatChange":
+        if self.before == self.after and self.ready_modes_before == self.ready_modes_after:
+            raise ValueError("a change must move the status or the usable modes")
         return self
