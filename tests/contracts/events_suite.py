@@ -3,10 +3,12 @@
 Subclass EventSourceContract in a class whose name starts with Test and
 implement make_rig(). Rules: events fed before close() are delivered in order,
 then iteration ends; iteration ends after close() when nothing was fed;
-close() is idempotent; devices marked already present by preload() are
-delivered as ATTACHED events when iteration begins, before live events.
-A real udev adapter blocks while the source is open and must still drain
-buffered events before ending.
+close() is idempotent and seals the feed: devices marked already present by
+preload() are delivered as ATTACHED events when iteration begins, before
+any live event even if the live event was fed first; preload order is stable.
+Events buffered before close are still delivered; push/preload after close
+are ignored. A real udev adapter blocks while the source is open and must
+still drain buffered events before ending.
 """
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -68,6 +70,29 @@ class EventSourceContract:
         rig.feed(live)
         rig.source.close()
         assert list(rig.source.events()) == [present, live]
+
+    def test_live_event_fed_first_still_follows_coldplug(self, rig):
+        # CR-5: ordering must come from preload, not from call order.
+        live = make_event("usb-b", DeviceEventKind.ATTACHED, 1)
+        rig.feed(live)
+        present = make_event("usb-a", DeviceEventKind.ATTACHED, 0)
+        rig.preload(present)
+        assert list(rig.source.events()) == [present, live]
+
+    def test_push_after_close_is_not_delivered(self, rig):
+        rig.source.close()
+        rig.feed(make_event("usb-a", DeviceEventKind.ATTACHED, 1))
+        rig.preload(make_event("usb-b", DeviceEventKind.ATTACHED, 2))
+        assert list(rig.source.events()) == []
+
+    def test_preloaded_device_detached_before_iteration_shows_both(self, rig):
+        attached = make_event("usb-a", DeviceEventKind.ATTACHED, 1)
+        rig.preload(attached)
+        detached = attached.model_copy(
+            update={"kind": DeviceEventKind.DETACHED, "observed_ns": 2}
+        )
+        rig.feed(detached)
+        assert list(rig.source.events()) == [attached, detached]
 
     def test_close_is_idempotent(self, rig):
         rig.source.close()

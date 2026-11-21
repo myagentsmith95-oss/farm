@@ -8,7 +8,7 @@ from tests.contracts.lease_suite import LeaseManagerContract, LeaseRig
 class TestFakeDeviceEventSource(EventSourceContract):
     def make_rig(self):
         source = FakeDeviceEventSource()
-        return EventRig(source=source, feed=source.push, preload=source.push)
+        return EventRig(source=source, feed=source.push, preload=source.preload)
 
 
 class TestFakeLeaseManager(LeaseManagerContract):
