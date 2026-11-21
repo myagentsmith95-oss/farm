@@ -62,16 +62,7 @@ def test_key_rejects_blank_code(code):
         Key(code=code)
 
 
-CANONICAL_KEYS = [
-    "HOME",
-    "BACK",
-    "APP_SWITCH",
-    "ENTER",
-    "DEL",
-    "POWER",
-    "VOLUME_UP",
-    "VOLUME_DOWN",
-]
+CANONICAL_KEYS = ["HOME", "BACK", "ENTER", "DEL", "APP_SWITCH"]
 
 
 @pytest.mark.parametrize("code", CANONICAL_KEYS)
@@ -83,6 +74,13 @@ def test_key_rejects_an_unknown_code():
     # N3: backends must not invent their own key language per device.
     with pytest.raises(ValidationError):
         Key(code="NOT_A_KEY")
+
+
+@pytest.mark.parametrize("code", ["POWER", "VOLUME_UP", "VOLUME_DOWN", "MUTE"])
+def test_key_rejects_removed_device_controls(code):
+    # D-4: no power or volume control is in scope.
+    with pytest.raises(ValidationError):
+        Key(code=code)
 
 
 def test_text_rejects_empty_value():
