@@ -43,9 +43,11 @@ class DeviceEventSource(Protocol):
         """Device events in the order observed.
 
         Coldplug: when iteration begins, yield a synthetic ATTACHED event for
-        every already-present matching device, in a stable order, before any
-        live change event. A host restart with all devices still plugged in
-        must reach the same state as a fresh plug sequence.
+        every already-present matching device, in a stable order (preload
+        order), before any live change event — even when a live event was
+        observed first. "Matching" means the source's own device filter. A
+        source is iterated once. A host restart with all devices still
+        plugged in must reach the same state as a fresh plug sequence.
         """
         ...
 
