@@ -1,8 +1,8 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.8
-**Supersedes:** ADF-DEC-V1.7 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
-**Revision date:** November 18, 2026
+**Document:** DOC ADF-DEC-V1.9
+**Supersedes:** ADF-DEC-V1.8 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Revision date:** November 21, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
 ---
@@ -37,6 +37,8 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C22 | Four CI gates now run: ruff, mypy, lint-imports and pytest. A zero-byte tracked-file test replaces the empty scaffold placeholders with `.gitkeep` markers, and C5/C7 are re-tagged `proposed` because their files belong to W2/W5. | ch. 4.3, ch. 8, PDF recs 3-5 | settled |
 | C23 | Sim core (`farm.testing.SimDevice`): a virtual seat emits udev-shaped `DeviceEvent`s with monotonic timestamps through a real `DeviceEventSource`; the production `SeatRegistry` drives virtual attach/detach in CI. This closes the W1 exit demo. | ch. 8 (days 6-7), W1 | settled |
 | C24 | Renamed `DeviceRole.HID_CONTROLLER` to `HID_BOARD` (`"hid_board"`). Roles name physical hardware; "controller" collided with MaaFramework's custom-controller callback API. No serialized data exists yet, so the value change needs no migration. | ch. 4.1, Table 4 | settled |
+| C25 | M1 (review v3): one `DeviceEvent` whose identifiers match several roles of the same seat is recorded as an ambiguous claim that contests those roles instead of filling them. A single physical device can no longer make a seat READY; the same event may still fill one role in each of several seats. | ch. 2.1, Table 5 #2 | settled |
+| C26 | N2 (review v2): `SeatState.ready_modes` records which input modes are usable now, derived from `present ∩ role-requirements`. `SeatStatus` remains an inventory-completeness signal, not a schedulability gate: a dual-mode seat with only the phone attached is usable via ADB while its status is PARTIAL. | ch. 2.1, ch. 4.2 | settled |
 
 **Open items carried forward**
 

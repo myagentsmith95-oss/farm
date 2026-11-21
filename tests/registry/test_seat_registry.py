@@ -21,13 +21,27 @@ def change(seat, before, after):
     return SeatChange(seat_id=seat, before=before, after=after)
 
 
-def state(seat, status, present=frozenset(), conflicted=frozenset()):
-    return SeatState(seat_id=seat, status=status, present=present, conflicted=conflicted)
-
-
 HID = DeviceRole.HID_BOARD
 CARD = DeviceRole.CAPTURE_CARD
 PHONE = DeviceRole.PHONE
+
+MODE_ROLE = {InputMode.HID: HID, InputMode.ADB: PHONE}
+SEAT_MODES = {
+    "std": (InputMode.HID,),
+    "adb": (InputMode.ADB,),
+    "both": (InputMode.HID, InputMode.ADB),
+}
+
+
+def state(seat, status, present=frozenset(), conflicted=frozenset()):
+    ready = frozenset(m for m in SEAT_MODES[seat] if MODE_ROLE[m] in present)
+    return SeatState(
+        seat_id=seat,
+        status=status,
+        present=present,
+        conflicted=conflicted,
+        ready_modes=ready,
+    )
 
 
 def spec(seat_id, modes, devices):
@@ -147,6 +161,32 @@ def test_dual_mode_seat_transitions_through_all_states():
     ]
 
 
+def test_dual_mode_seat_reports_adb_ready_when_only_the_phone_is_attached():
+    # N2: PARTIAL is inventory completeness, not "unusable". ADB needs only the
+    # phone, so the fallback must be schedulable even with the board unplugged.
+    registry = SeatRegistry(table())
+    registry.apply(event(ATTACH, "phone2"))
+    state = registry.state("both")
+    assert state.status is SeatStatus.PARTIAL
+    assert state.ready_modes == frozenset({InputMode.ADB})
+
+
+def test_hid_ready_modes_track_the_standard_seats_hardware():
+    registry = SeatRegistry(table())
+    registry.apply(event(ATTACH, "ctrl"))
+    assert registry.state("std").ready_modes == frozenset({InputMode.HID})
+    registry.apply(event(ATTACH, "ignored", "p1"))
+    assert registry.state("std").ready_modes == frozenset({InputMode.HID})
+
+
+def test_ready_modes_is_empty_for_absent_and_conflicted_seats():
+    registry = SeatRegistry(table())
+    assert registry.state("adb").ready_modes == frozenset()
+    registry.apply(event(ATTACH, "ctrl", "p1"))
+    assert registry.state("std").status is SeatStatus.CONFLICT
+    assert registry.state("std").ready_modes == frozenset()
+
+
 # ---- Matching rules ---------------------------------------------------------
 
 
@@ -261,6 +301,20 @@ def test_one_event_can_move_two_seats():
     ]
 
 
+def test_one_event_cannot_fill_two_roles_of_the_same_seat():
+    # M1: by_id claims the board and by_path claims the card of seat "std" in
+    # one event. One physical device must not make a seat READY on its own.
+    registry = SeatRegistry(table())
+    assert changes(registry, event(ATTACH, "ctrl", "p1")) == [
+        change("std", SeatStatus.ABSENT, SeatStatus.CONFLICT)
+    ]
+    assert registry.state("std").status is SeatStatus.CONFLICT
+    assert registry.state("std").present == frozenset()
+    assert changes(registry, event(DETACH, "ctrl", "p1")) == [
+        change("std", SeatStatus.CONFLICT, SeatStatus.ABSENT)
+    ]
+
+
 # ---- Finite feed integration ------------------------------------------------
 
 
@@ -316,6 +370,16 @@ def test_status_is_consistent_with_occupancy_after_any_event_stream(events):
                 assert state.status is SeatStatus.PARTIAL
             else:
                 assert state.status is SeatStatus.ABSENT
+
+
+@settings(max_examples=100)
+@given(event_strategy)
+def test_a_single_event_never_fills_two_roles_of_one_seat(e):
+    t = table()
+    registry = SeatRegistry(t)
+    registry.apply(e)
+    for seat in t.seats:
+        assert len(registry.state(seat.seat_id).present) <= 1
 
 
 def test_registry_only_uses_the_event_source_seam():

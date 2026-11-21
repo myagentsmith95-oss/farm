@@ -98,10 +98,15 @@ class SeatTable(_Model):
 
 
 class SeatState(_Model):
+    """Inventory snapshot. status/present describe which hardware is plugged
+    in; ready_modes answers the scheduler's question — which input modes are
+    usable right now. A PARTIAL seat can still be READY via a fallback mode."""
+
     seat_id: NonBlank
     status: SeatStatus
     present: frozenset[DeviceRole] = frozenset()
     conflicted: frozenset[DeviceRole] = frozenset()
+    ready_modes: frozenset[InputMode] = frozenset()
 
 
 class SeatChange(_Model):
