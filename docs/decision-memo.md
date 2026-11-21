@@ -1,8 +1,8 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.15
-**Supersedes:** ADF-DEC-V1.14 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
-**Revision date:** November 21, 2026
+**Document:** DOC ADF-DEC-V1.16
+**Supersedes:** ADF-DEC-V1.15 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Revision date:** November 22, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
 ---
@@ -48,6 +48,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C33 | CR-1 (review v4): `SeatChange` now carries `ready_modes_before` and `ready_modes_after` (default empty), and `apply()` emits a change when the usable mode set changes even if `SeatStatus` does not. A scheduler consuming the change stream can no longer miss a fallback becoming usable or disappearing. The three-field construction stays valid. | ch. 4.2, ch. 6, C26 | settled |
 | C34 | CR-9 (review v4): `tests/` and `tests/contracts/` are packages and all five fake suites import their suites as `tests.contracts.<suite>`. The same tests now collect under pytest's default prepend mode and under `--import-mode=importlib`, so the W2 adapter tests can reuse the suites from any directory. An AST guard rejects bare suite imports; `repo_audit.sh` EXPECTED covers the new files. | ch. 4.1, C17 | settled |
 | C35 | N3/N4, amended by `docs/ARCHITECTURE.md` §4.4 / D-4 / D-7: `Key.code` is a canonical `KeyCode` StrEnum with exactly five values — `HOME`, `BACK`, `ENTER`, `DEL`, `APP_SWITCH`. HOME/BACK map to consumer usages 0x223/0x224 in composite firmware, ENTER/DEL to keyboard usages 0x28/0x2A; APP_SWITCH has no HID usage, so the HID backend reports `supports() == False` and scenarios use a touch macro or ADB keycode 187. Power, volume and mute are out of scope (D-4). Uppercase values keep existing `Key(code="HOME")` scenarios working. `InputBackend.perform()` blocks until full injection, and for Swipe until the gesture completes; the Maa stub records the canonical string and notes that real Maa's W6 adapter owns the integer-keycode mapping. | ch. 2.1, ch. 4.1, D6, D-4, D-7 | settled |
+| C36 | Task 12: `docs/ARCHITECTURE.md` becomes the hardware source of truth. Corrected in this memo: the ESP32 is a HID digitizer, not a pointer (§12.1); no L1 tap-grid, alignment = active-area crop + `RES` (§12.2); firmware base is `stop-esp32-s3-to-reboot` touch-fw-2, D3 is session ideas only (§12.3); serial is UART0 over the USB-serial bridge with no-reset discipline, not CDC (§12.5); standard-seat ADB fallback is Wi-Fi (§12.6); dual-client proves verb shape only (§12.7); board health is `BOOT`/`PING`, not udev (§12.8). HANDOFF.md was deleted. | ch. 2.2, ch. 4, ch. 7, ch. 10, D3, arch §12 | settled |
 
 **Open items carried forward**
 
@@ -60,6 +61,8 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | O5 | Share of ADB-only seats among the fifty, and whether they ever also get an ESP32 and capture card as a fallback. | open |
 | O6 | Firmware/protocol versions at handshake are not recorded, and ADB screencap (C9) stays proposed until W3. Seat resolution and the profile store landed with C20. | open (W3/W5 follow-up) |
 | O7 | The dual-client test uses synthetic labelled frames; replace with recorded footage from target phones before the W5 probe (R9). | open, before W5 |
+| O8 | Task 13: composite keyboard + consumer firmware, heartbeat/STOP/dedup, version banner, golden vectors, and the architecture §15 no-ADB acceptance checklist. Owner TBD, W2. | open, W2 |
+| O9 | LICENSE for the farm and the experiments repository is still undecided. | open, owner: user |
 
 ---
 
@@ -77,7 +80,7 @@ The decisions below are the baseline that any future change proposal must argue 
 
 **D2: MaaFramework behind a week-five gate.** It scored highest of the viable candidates (~57% feature coverage, active, 5.2k stars) but its vision and pipeline semantics must first pass a probe on recorded frames. The probe is cheap precisely because the interfaces exist before the integration code does.
 
-**D3: esp32-android-agent as firmware reference.** The MIT-licensed ESP32 HID reference validates the riskiest hardware assumption, root-free input injection on phones without ADB, before any farm firmware is written.
+**D3: firmware base is `stop-esp32-s3-to-reboot` (touch-fw-2).** *(Corrected by `docs/ARCHITECTURE.md` §12.)* The working firmware is a two-finger USB HID **digitizer** (usage page 0x0D, usage 0x04), not a keyboard/mouse pointer. It injects absolute touch with no root, no ADB and no app on the phone. `esp32-android-agent` uses the wrong HID layer (keyboard + mouse, per-phone pointer calibration); keep it only for session ideas — heartbeat, cancel, no-replay.
 
 **D4: Contracts first.** The first module is the contracts package: the `Event` and `DeviceProfile` models plus the five seams (InputBackend, CaptureSource, LeaseManager, DeviceEvent, Matcher/OcrEngine). Contracts contain models and interfaces only, with stdlib and pydantic as the sole imports. Fakes live in `farm.testing`. Everything else compiles against contracts; every adoption is sealed inside them. *(Changed in V1.1: C1, C2.)*
 
@@ -85,7 +88,7 @@ The decisions below are the baseline that any future change proposal must argue 
 
 **D6: Dual-client interface test on day five.** The same recorded-frame corpus drives both the farm's fake InputBackend and a stub of MaaFramework's custom-controller callbacks, converting the week-five adoption decision from an architecture change into a configuration change.
 
-**D7: Vision stays minimal until the gate.** Custom template matching and OCR work before week five carries a live probability of being deleted by the probe. Vision is built last among the cores, smallest, and only far enough to close the calibration loop.
+**D7: Vision stays minimal until the gate.** Custom template matching and OCR work before week five carries a live probability of being deleted by the probe. Vision is built last among the cores, smallest, and only far enough to close the capture→recognise→act→verify loop.
 
 **D8: Streaming is a view, not a core.** Dashboard live views run on the internal event and frame stream (MJPEG over WebSocket). External broadcast to Facebook or YouTube, if ever needed, stays outside the farm: the platforms' native apps cover single-platform casts and PRISM Live Studio covers simultaneous multi-platform pushes.
 
@@ -107,7 +110,7 @@ Phones differ in what they accept, so a seat is one of two classes:
 - Each standard seat pairs one ESP32-S3, which injects touch and key input as a USB HID device, with one UVC capture card that observes the phone's screen.
 - Some phones refuse ADB; the HID path exists for them, which is why it is root-free and carries the project's biggest hardware risk.
 - Some phones cannot feed a capture card or do not accept HID. They remain valid seats through ADB control and ADB screencap.
-- A phone may support both backends. Its `DeviceProfile` then holds an ordered preference list; the first usable entry is tried first and the other serves as fallback. Only one backend is active at a time, and the lease enforces it.
+- A phone may support both backends. Its `DeviceProfile` then holds an ordered preference list; the first usable entry is tried first and the other serves as fallback. Only one backend is active at a time, and the lease enforces it. On a standard seat the USB-C port is occupied by the HDMI hub, so the fallback is **ADB over Wi-Fi** (paired once), not wired ADB.
 - A manually operated seat is an operator concern (the dashboard's manual-control path, week 8), not a backend and not an entry in a preference list.
 
 **Device identity (C32).** Every physical device has a stable `by_id` that is unique to it. Devices without a serial, such as a UVC capture card, get a synthesized id from `vendor:product` plus the physical USB port path; the udev adapter owns that synthesis at the seam. Because ids never collide between physical devices, a detach carrying only `by_id` normally identifies one claimant. The registry still guards the ambiguous case: if several claims match, only an exact field-for-field match is released.
@@ -116,7 +119,7 @@ Everything above the seams is shared by both classes: vision (matching and OCR),
 
 ### 2.2 Normalized coordinates *(C10)*
 
-Scenarios, the decision engine and the runner express positions in normalized coordinates (0 to 1). Each `InputBackend` converts them to its own units. HID needs the L1 tap-grid and L2 active-area calibration, because the ESP32 emulates a pointer and where a tap lands depends on the phone's active area. ADB takes native pixels, so its conversion is a scale by screen width and height and needs no calibration. Calibration is therefore an HID-path concern, and ADB-only seats skip it.
+Scenarios, the decision engine and the runner express positions in normalized coordinates (0 to 1). Each `InputBackend` converts them to its own units. *(Corrected by `docs/ARCHITECTURE.md` §12.)* The ESP32 is a **HID digitizer** with absolute coordinates, not a pointer. There is **no tap-grid calibration**. Alignment is a chain of fixed linear maps: normalized 0–1 → capture active-area crop pixels → `RES`-declared coordinate space → HID logical 0–32767 → Android's automatic display scaling. The "active area" is the portrait phone image inside HDMI pillarboxes, detected in the capture frame; the crop also becomes the touch coordinate space because `RES` is set to the crop size. ADB converts by screen width and height. See §8 of the architecture document.
 
 ### 2.3 The twenty-feature baseline
 
@@ -128,7 +131,7 @@ The baseline is the scoring yardstick used throughout the repository study, dist
 | Capture | UVC / HDMI capture-card path; MJPG with buffer-one and latest-frame freshness; exposure lock | 3 |
 | Vision | Template matching with ROI and threshold; OCR; perceptual-hash settle check | 3 |
 | Automation | Decision engine with interrupt rules; declarative YAML scenarios; scheduler with queue, retry and timeout; settle-verify closed loop | 4 |
-| Farm | Lease with single-writer rule; calibration mapping pixels to normalized coordinates; dashboard live view with manual control; REST API; WebSocket event stream; fifty-device scaling | 6 |
+| Farm | Lease with single-writer rule; active-area crop detection and linear normalized-coordinate mapping; dashboard live view with manual control; REST API; WebSocket event stream; fifty-device scaling | 6 |
 
 *Table 1. Sum check: 4 + 3 + 3 + 4 + 6 = 20.*
 
@@ -144,7 +147,7 @@ Seven repositories were evaluated against the baseline. Each was scored on featu
 |---|---|---|---|---|---|
 | LmeSzinc / AzurLaneAutoScript | ~60% | 9.8k | Active | GPL-3.0 | Reference only: game-specific automation, GPL |
 | MaaXYZ / MaaFramework | ~57% | 5.2k | Active | LGPL-3.0 | Adopt: vision, OCR and pipeline engine behind W5 gate |
-| shenlan-ai / esp32-android-agent | ~52% | 34 | New project | MIT | Adopt as firmware reference for the HID path |
+| shenlan-ai / esp32-android-agent | ~52% | 34 | New project | MIT | Reference only for session ideas (heartbeat/cancel). Firmware base is `stop-esp32-s3-to-reboot` touch-fw-2 — a digitizer, not a pointer |
 | SonicCloudOrg / sonic | ~50% | n/a | Archived 2025-03 | AGPL-3.0 | Excluded: archived by its maintainers |
 | AirtestProject / Airtest | ~45% | 12k | Low activity | Apache-2.0 | Not adopted: at threshold, weaker fit than Maa |
 | DeviceFarmer / stf | ~42% | 4.7k | Low activity | Apache-2.0 | Reference only: device-seat topology ideas |
@@ -198,10 +201,10 @@ The custom third of the baseline is not leftover work; it is the product. Five c
 
 | # | Custom core | What it owns and why it stays custom |
 |---|---|---|
-| 1 | Input control | The ESP32 serial protocol over CDC, the HID descriptors, and the InputRouter that applies each device's input-mode preference. Root-free HID injection is the farm's signature capability. |
+| 1 | Input control | The ESP32 UART0 line protocol over the USB-serial bridge, the HID digitizer descriptor, and the InputRouter that applies each device's input-mode preference. Root-free absolute touch injection is the farm's signature capability. |
 | 2 | Registry | Device identity by by-id / by-path rules, seat resolution, inventory, enrollment, and the firmware and protocol versions recorded at handshake. It does not own leases. |
 | 3 | Runner, orchestration and lease authority | The supervisor (single writer of the event stream and holder of the leases), per-device workers, the scenario interpreter, the queue, scheduling, retries and timeouts across fifty seats. Scheduling semantics are coupled to the lease and event model. |
-| 4 | Capture routing and calibration | UVC seat routing, the freshness contract, tap-grid and active-area calibration turning pixels into normalized coordinates. |
+| 4 | Capture routing and active-area detection | UVC seat routing, the freshness contract, MJPG capture, no-signal detection, and pillarbox crop detection that defines the touch coordinate space. |
 | 5 | Console wiring | The event-stream views, the manual-control path and the dashboard assembly. FastAPI and Jinja2 are commodities; what they display is farm state. Views, never writers. |
 
 *Table 5. The five custom cores (~35% of the baseline, host software).*
@@ -226,7 +229,7 @@ contracts
 - `app.py` is the composition root, directly under the root package and outside the layers. It is the only importer of `adapters`.
 - `farm.testing` and `farm.adapters` sit above everything, so production code cannot import fakes and cannot reach a third-party library except through the composition root.
 - Each third-party library is imported in exactly one adapter module (`udev.py`, `adb.py`, `esp32_serial.py`, `uvc_cv2.py`, `maa_client.py`, `http_ws.py` for the console's server stack). This makes the seams table a property of the code.
-- Calibration receives the `InputBackend` interface from contracts by injection and does not import control. Control checks leases through the `LeaseManager` interface from contracts, not through the runner.
+- The calibration layer detects the phone's active area in the captured frame and converts normalized coordinates; it receives the `InputBackend` interface by injection and does not import control. It performs no tap-grid calibration. Control checks leases through the `LeaseManager` interface from contracts, not through the runner.
 - Contracts are checked by an AST allowlist test: stdlib, pydantic and `farm.contracts` only. A dependency added later is rejected by default. The test has self-tests proving the guard can fail.
 - Cross-process contracts live in `protocol/`: `serial_v1.md` with golden vectors (`serial_vectors.json`) exercised from both the Python tests and the firmware, and `maa_ipc.md` for the farm-to-Maa message surface (to be written in week 5).
 
@@ -241,7 +244,7 @@ Fourteen libraries carry the adopted share of the baseline. The set was chosen s
 | pydantic | Contracts: Event and DeviceProfile models; validation at every module boundary | MIT |
 | pyudev | Registry: udev attach/detach events behind DeviceEvent | LGPL-2.1+ |
 | adbutils | InputBackend, ADB path: tap, swipe, key, text; ADB screencap *(proposed)* | Apache-2.0 |
-| pyserial | Control: serial protocol v1 over CDC to the ESP32-S3 | PSF / BSD-style |
+| pyserial | Control: line protocol v1 over the ESP32's UART0 USB-serial bridge (115200), no-reset open discipline | PSF / BSD-style |
 | opencv-python-headless | Capture (VideoCapture, MJPG, buffer-one) and the fallback matcher | Apache-2.0 |
 | imagehash | Perceptual-hash settle checks in the verify loop | MIT |
 | MaaFramework (maafw) | Vision, OCR and pipeline engine behind the week-five gate | LGPL-3.0 |
@@ -304,9 +307,9 @@ The plan runs ten weeks for one engineer, with vertical slices throughout: every
 | Week | Focus and deliverables | Third-party libraries | Exit criteria |
 |---|---|---|---|
 | W1 | Contracts slice (Event, DeviceProfile, the five seams); `farm.testing` fakes and sim device; registry on a fake udev feed; import-linter and purity-guard CI gates; dual-client interface test on day 5 | pydantic, pyudev, pytest, hypothesis, ruff, mypy, import-linter | Virtual device attaches and detaches in CI; pytest and lint-imports green; dual-client test passes |
-| W2 | Control on real hardware: serial protocol v1 over CDC with golden vectors; InputRouter with per-device input preference; firmware from the esp32-android-agent reference | pyserial, adbutils | First real tap through the ESP32 on a real phone; HID acceptance verified on a no-ADB phone |
+| W2 | Control on real hardware: line protocol v1 over the UART0 bridge with golden vectors; no-reset serial open + `BOOT` health monitoring; active-area crop + `RES` sync; InputRouter with per-device preference; extend touch-fw-2 with composite keyboard/consumer keys | pyserial, adbutils | First real tap through the ESP32 on a real phone; HID acceptance verified on a no-ADB phone; architecture §15 acceptance checklist |
 | W3 | Capture closed loop: VideoCapture over UVC, MJPG, buffer-one, exposure locked; latest-frame slot with freshness contract; **measure ADB screencap latency (O4)** | opencv-python-headless | Frame-to-tap round trip on one device within the latency budget |
-| W4 | Calibration L1 tap-grid and L2 active-area crop; runner v1 with SQLite queue; scenario interpreter v1; dashboard v0 as views on the event stream | PyYAML, FastAPI, Jinja2, uvicorn | First unattended overnight run on one device |
+| W4 | Active-area crop detection and `RES` sync (no tap grid); runner v1 with SQLite queue; scenario interpreter v1; dashboard v0 as views on the event stream | PyYAML, FastAPI, Jinja2, uvicorn | First unattended overnight run on one device |
 | W5 | MaaFramework probe gate: Python binding driven on the recorded-frame corpus; scored against coverage, activity, license, fit and replaceability (prior score 3.30 / 5.00, rubric to be attached, O1); write `protocol/maa_ipc.md` | maafw | Adopt-or-reject decision recorded; either branch is a configuration change |
 | W6 | Integration branch: Maa custom-controller adapter (connect, screencap, click, swipe, touch, key, text), or on rejection a minimal matcher with ROI restriction | maafw or opencv-python-headless | Settle-verify loop closed with vision in the loop |
 | W7 | Decision-engine hardening: interrupt rules, lease-held steps, settle-verify parameters; event-log discipline (seq, ts monotonic) | None (custom core) | Interrupt and recovery paths pass fault-injection tests |
@@ -347,7 +350,7 @@ The register is the short list that survived the study. Each risk names its miti
 
 | ID | Risk | Severity | Mitigation | Retired by | Owner |
 |---|---|---|---|---|---|
-| R1 | HID input rejected on no-ADB phones | High | Week-two real-hardware test against a no-ADB phone; esp32-android-agent reference firmware; ADB fallback per device profile | W2 | TBD |
+| R1 | HID input rejected on no-ADB phones | High | Week-two real-hardware test against a no-ADB phone; touch-fw-2 digitizer firmware; Wi-Fi ADB fallback on dual-mode seats | W2 | TBD |
 | R2 | MaaFramework probe fails the gate | Medium | Minimal vision path already scoped (ROI-restricted matching, imagehash settle); interfaces make either branch a configuration change | W5 to W6 | TBD |
 | R3 | UVC frame freshness and exposure drift | Medium | Exposure locked at capture; buffer-one with latest-frame freshness contract; perceptual-hash settle check before every action | W3 | TBD |
 | R4 | OCR accuracy varies across device models | Medium | MaaFramework brings its own OCR stack; scenarios prefer template anchors over free-text reading where possible | W5 to W6 | TBD |
@@ -368,7 +371,7 @@ None of these requires permission, budget beyond pocket-change hardware, or more
 
 - Order the week-two hardware now: one ESP32-S3 board, one UVC capture card, two test phones, one of which refuses ADB. Include hardware supply and hub topology in the plan (R8).
 - Initialize the repository with the contracts skeleton and CI running ruff, mypy, lint-imports and pytest from the first commit.
-- Clone esp32-android-agent and MaaFramework; read the former's HID descriptors and the latter's custom-controller callback list. Those two documents are the shape of the week-five gate.
+- Port the proven `stop-esp32-s3-to-reboot` touch-fw-2 digitizer and its line protocol into the farm adapters behind the seams; read MaaFramework's custom-controller callback list. Those two documents are the shape of the week-five gate. See `docs/ARCHITECTURE.md` Appendix A.
 - Start recording the probe corpus: representative screen footage from the target phones, labeled with expected recognitions, so week five has its replays ready (R9).
 
 Success for the ten weeks is equally concrete: a tap injected through an ESP32 landing on a real phone in week two; an unattended overnight run in week four; a recorded adopt-or-reject decision on MaaFramework in week five; and fifty seats running the loop unattended, observed from the dashboard, by week ten. One rule carries the whole plan: **one backend, one device, one end-to-end action, before anything scales.**
