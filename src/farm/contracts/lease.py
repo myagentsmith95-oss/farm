@@ -38,5 +38,11 @@ class LeaseManager(Protocol):
         ...
 
     def is_valid(self, lease: Lease) -> bool:
-        """True while this exact grant is current and now < expires_ns."""
+        """True while this exact grant is current and now < expires_ns.
+
+        Validity checks the **current grant's** expiry, not the snapshot's own
+        expires_ns: renew extends the grant for all snapshots with the same
+        token, so a pre-renew lease remains valid until the renewed grant
+        expires. A token or holder change invalidates the snapshot.
+        """
         ...
