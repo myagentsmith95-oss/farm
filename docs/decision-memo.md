@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.10
-**Supersedes:** ADF-DEC-V1.9 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.11
+**Supersedes:** ADF-DEC-V1.10 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 21, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -41,6 +41,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C26 | N2 (review v2): `SeatState.ready_modes` records which input modes are usable now, derived from `present ∩ role-requirements`. `SeatStatus` remains an inventory-completeness signal, not a schedulability gate: a dual-mode seat with only the phone attached is usable via ADB while its status is PARTIAL. | ch. 2.1, ch. 4.2 | settled |
 | C27 | R1 (review v4): a DETACH releases every claim for the same device across all roles and both claim dictionaries, using identifier agreement where both reports supply a field. An asymmetric detach — fewer matched roles or an omitted optional identifier — can no longer wedge a seat in CONFLICT; a genuinely different claimant is still left alone. | ch. 4.2, Table 5 #2 | settled |
 | C28 | R2/R3 (review v4): role requirements are per mode — HID needs both `HID_BOARD` and `CAPTURE_CARD`, ADB needs `PHONE` — and `ready_modes` requires all of them, so a board without a capture card is not schedulable. A CONFLICT removes only the modes whose required roles are conflicted; `SeatState` documents that schedulers must consult `ready_modes`, not `status` alone. The registry test helper now takes `ready_modes` as an explicit literal rather than re-deriving production's formula. | ch. 2.1, ch. 4.2 | settled |
+| C29 | N1 (reviews v2 and v4): `DeviceEventSource.events()` must yield a synthetic ATTACHED event for every already-present matching device at iteration start, before live changes (coldplug), so a restarted host discovers its plugged-in seats. The reusable event-source suite pins that ordering, and `SimDevice` gains a `present` mode that drives the production registry to READY without a new physical plug. The real pyudev adapter implements enumeration in W2. | ch. 4.1, ch. 8, C17 | settled (contract + suite); adapter due W2 |
 
 **Open items carried forward**
 
