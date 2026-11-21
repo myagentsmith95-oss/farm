@@ -101,6 +101,19 @@ class LeaseManagerContract:
         lease = rig.manager.acquire("seat-01", "runner-a", 1000)
         assert rig.manager.renew(lease, 1000).token == lease.token
 
+    def test_is_valid_checks_the_current_grant_after_renew(self, rig):
+        # CR-4: validity belongs to the grant, not to the snapshot's own
+        # expires_ns. An old snapshot stays valid while the renewed grant is.
+        old = rig.manager.acquire("seat-01", "runner-a", 100)
+        rig.manager.renew(old, 1000)
+        rig.clock.advance_ms(500)
+        assert old.expires_ns < rig.clock.now_ns()
+        assert rig.manager.is_valid(old)
+
+    def test_is_valid_docstring_pins_current_grant_semantics(self, rig):
+        doc = LeaseManager.is_valid.__doc__ or ""
+        assert "current grant" in doc and "renew" in doc
+
     def test_renew_expired_lease_raises(self, rig):
         lease = rig.manager.acquire("seat-01", "runner-a", 1000)
         rig.clock.advance_ms(1000)
