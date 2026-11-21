@@ -1,4 +1,5 @@
 """In-memory EventLog with an injected clock."""
+import copy
 import time
 from collections.abc import Callable, Mapping
 
@@ -35,4 +36,6 @@ class FakeEventLog:
     def since(self, seq: int) -> list[Event]:
         if seq < 0:
             raise ValueError(f"seq must not be negative, got {seq}")
-        return self._events[seq:]
+        # A consumer must not be able to edit the log by editing its result.
+        # Event is frozen only at the attribute level; data is a mutable dict.
+        return copy.deepcopy(self._events[seq:])

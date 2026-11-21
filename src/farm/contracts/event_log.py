@@ -40,5 +40,6 @@ class EventLog(Protocol):
 
     def since(self, seq: int) -> list[Event]:
         """Events with seq greater than the given one, in order, as a new list.
-        Raises ValueError if seq is negative."""
+        Raises ValueError if seq is negative. Results are deep copies: a
+        consumer editing one cannot change the stored log."""
         ...

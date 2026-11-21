@@ -28,6 +28,14 @@ class DeviceRole(StrEnum):
     PHONE = "phone"  # the phone itself, for the ADB path
 
 
+# The single rulebook for what hardware an input mode needs. Both enrollment
+# (SeatSpec) and readiness (the registry) use it, so they cannot drift apart.
+MODE_ROLES: dict[InputMode, frozenset[DeviceRole]] = {
+    InputMode.HID: frozenset({DeviceRole.HID_BOARD, DeviceRole.CAPTURE_CARD}),
+    InputMode.ADB: frozenset({DeviceRole.PHONE}),
+}
+
+
 class SeatStatus(StrEnum):
     ABSENT = "absent"  # no required device present
     PARTIAL = "partial"  # some required devices present
@@ -68,12 +76,13 @@ class SeatSpec(_Model):
         return self.profile.device_id
 
     @model_validator(mode="after")
-    def _roles_support_input_modes(self):
-        modes = self.profile.input_modes
-        if InputMode.HID in modes and DeviceRole.HID_BOARD not in self.devices:
-            raise ValueError("hid input needs a hid_board device")
-        if InputMode.ADB in modes and DeviceRole.PHONE not in self.devices:
-            raise ValueError("adb input needs a phone device")
+    def _roles_support_input_modes(self) -> "SeatSpec":
+        # At least one declared mode must have all its required roles. A
+        # dual-mode seat with no capture card is still a valid ADB seat;
+        # rejecting it would lose phones that have no video output.
+        available = set(self.devices)
+        if not any(MODE_ROLES[mode] <= available for mode in self.profile.input_modes):
+            raise ValueError("at least one input mode must have all its required roles")
         return self
 
 

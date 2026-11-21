@@ -100,3 +100,10 @@ class EventLogContract:
         got = rig.log.since(0)
         got.clear()
         assert len(rig.log.since(0)) == 2
+
+    def test_since_results_cannot_mutate_the_log(self, rig):
+        # A consumer must not be able to edit the log by editing its result.
+        rig.log.append("action.performed", data={"n": 1})
+        got = rig.log.since(0)
+        got[0].data["n"] = 99
+        assert rig.log.since(0)[0].data["n"] == 1

@@ -143,9 +143,24 @@ def test_spec_accepts_a_seat_with_both_input_modes():
 def test_spec_seat_id_is_the_profile_device_id():
     spec = SeatSpec(
         profile=profile("seat-07"),
-        devices={HID: DeviceMatch(by_id="usb-ctrl")},
+        devices={HID: DeviceMatch(by_id="usb-ctrl"), CARD: DeviceMatch(by_path="p1")},
     )
     assert spec.seat_id == "seat-07"
+
+
+def test_spec_accepts_dual_mode_seat_without_a_capture_card():
+    # A phone with no video out is still a valid ADB seat even if a board is
+    # listed. One fully supported mode is enough for enrollment.
+    spec = SeatSpec(
+        profile=profile(modes=(InputMode.HID, InputMode.ADB)),
+        devices={HID: DeviceMatch(by_id="usb-ctrl"), PHONE: DeviceMatch(by_id="phone-serial")},
+    )
+    assert set(spec.devices) == {HID, PHONE}
+
+
+def test_spec_rejects_board_only_hid_seat():
+    with pytest.raises(ValidationError):
+        SeatSpec(profile=profile(), devices={HID: DeviceMatch(by_id="usb-ctrl")})
 
 
 def test_spec_rejects_hid_mode_without_a_hid_board():
@@ -172,7 +187,13 @@ def test_spec_rejects_unknown_role():
 
 
 def test_spec_accepts_role_names_as_strings():
-    spec = SeatSpec(profile=profile(), devices={"hid_board": DeviceMatch(by_id="x")})
+    spec = SeatSpec(
+        profile=profile(),
+        devices={
+            "hid_board": DeviceMatch(by_id="x"),
+            "capture_card": DeviceMatch(by_path="p1"),
+        },
+    )
     assert HID in spec.devices
 
 
@@ -186,7 +207,10 @@ def test_spec_rejects_extra_fields():
 
 
 def test_spec_is_immutable():
-    spec = SeatSpec(profile=profile(), devices={HID: DeviceMatch(by_id="x")})
+    spec = SeatSpec(
+        profile=profile(),
+        devices={HID: DeviceMatch(by_id="x"), CARD: DeviceMatch(by_path="p1")},
+    )
     with pytest.raises(ValidationError):
         spec.devices = {}
 
