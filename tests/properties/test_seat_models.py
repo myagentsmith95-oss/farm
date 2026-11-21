@@ -300,3 +300,26 @@ def test_change_accepts_a_transition():
         seat_id="seat-01", before=SeatStatus.ABSENT, after=SeatStatus.PARTIAL
     )
     assert (change.before, change.after) == (SeatStatus.ABSENT, SeatStatus.PARTIAL)
+    assert change.ready_modes_before == frozenset()
+    assert change.ready_modes_after == frozenset()
+
+
+def test_change_accepts_same_status_when_modes_change():
+    change = SeatChange(
+        seat_id="seat-01",
+        before=SeatStatus.PARTIAL,
+        after=SeatStatus.PARTIAL,
+        ready_modes_after=frozenset({InputMode.ADB}),
+    )
+    assert change.ready_modes_after == frozenset({InputMode.ADB})
+
+
+def test_change_rejects_a_no_op_even_when_modes_match():
+    with pytest.raises(ValidationError):
+        SeatChange(
+            seat_id="seat-01",
+            before=SeatStatus.READY,
+            after=SeatStatus.READY,
+            ready_modes_before=frozenset({InputMode.HID}),
+            ready_modes_after=frozenset({InputMode.HID}),
+        )

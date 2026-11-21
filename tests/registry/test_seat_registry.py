@@ -17,8 +17,14 @@ from farm.contracts.seats import (
 from farm.registry import SeatRegistry, resolve_all
 
 
-def change(seat, before, after):
-    return SeatChange(seat_id=seat, before=before, after=after)
+def change(seat, before, after, modes_before=frozenset(), modes_after=frozenset()):
+    return SeatChange(
+        seat_id=seat,
+        before=before,
+        after=after,
+        ready_modes_before=modes_before,
+        ready_modes_after=modes_after,
+    )
 
 
 HID = DeviceRole.HID_BOARD
@@ -122,14 +128,24 @@ def test_standard_seat_absent_to_partial_to_ready_and_back():
     assert registry.state("std") == state("std", SeatStatus.PARTIAL, frozenset({HID}))
 
     assert changes(registry, event(ATTACH, "ignored", "p1")) == [
-        change("std", SeatStatus.PARTIAL, SeatStatus.READY)
+        change(
+            "std",
+            SeatStatus.PARTIAL,
+            SeatStatus.READY,
+            modes_after=frozenset({InputMode.HID}),
+        )
     ]
     assert registry.state("std") == state(
         "std", SeatStatus.READY, frozenset({HID, CARD}), ready_modes=frozenset({InputMode.HID})
     )
 
     assert changes(registry, event(DETACH, "ignored", "p1")) == [
-        change("std", SeatStatus.READY, SeatStatus.PARTIAL)
+        change(
+            "std",
+            SeatStatus.READY,
+            SeatStatus.PARTIAL,
+            modes_before=frozenset({InputMode.HID}),
+        )
     ]
     assert changes(registry, event(DETACH, "ctrl")) == [
         change("std", SeatStatus.PARTIAL, SeatStatus.ABSENT)
@@ -140,7 +156,7 @@ def test_standard_seat_absent_to_partial_to_ready_and_back():
 def test_adb_only_seat_goes_ready_on_phone_attach():
     registry = SeatRegistry(table())
     assert changes(registry, event(ATTACH, "phone")) == [
-        change("adb", SeatStatus.ABSENT, SeatStatus.READY)
+        change("adb", SeatStatus.ABSENT, SeatStatus.READY, modes_after=frozenset({InputMode.ADB}))
     ]
     assert registry.state("adb") == state(
         "adb", SeatStatus.READY, frozenset({PHONE}), ready_modes=frozenset({InputMode.ADB})
@@ -152,10 +168,23 @@ def test_dual_mode_seat_transitions_through_all_states():
     assert changes(registry, event(ATTACH, "ctrl2")) == [
         change("both", SeatStatus.ABSENT, SeatStatus.PARTIAL)
     ]
-    assert changes(registry, event(ATTACH, "phone2")) == []
+    assert changes(registry, event(ATTACH, "phone2")) == [
+        change(
+            "both",
+            SeatStatus.PARTIAL,
+            SeatStatus.PARTIAL,
+            modes_after=frozenset({InputMode.ADB}),
+        )
+    ]
     assert registry.state("both").status is SeatStatus.PARTIAL
     assert changes(registry, event(ATTACH, "card", "p3")) == [
-        change("both", SeatStatus.PARTIAL, SeatStatus.READY)
+        change(
+            "both",
+            SeatStatus.PARTIAL,
+            SeatStatus.READY,
+            modes_before=frozenset({InputMode.ADB}),
+            modes_after=frozenset({InputMode.HID, InputMode.ADB}),
+        )
     ]
 
 
@@ -201,6 +230,46 @@ def test_conflict_removes_only_the_modes_whose_roles_are_conflicted():
     assert state.ready_modes == frozenset({InputMode.HID})
 
 
+def test_detach_of_the_last_mode_emits_a_change_with_the_same_status():
+    # CR-1: the scheduler hears about a usable mode disappearing even when
+    # inventory status does not move.
+    registry = SeatRegistry(table())
+    registry.apply(event(ATTACH, "phone2"))
+    registry.apply(event(ATTACH, "ignored", "p3"))
+    assert registry.state("both").status is SeatStatus.PARTIAL
+    assert registry.state("both").ready_modes == frozenset({InputMode.ADB})
+
+    assert changes(registry, event(DETACH, "phone2")) == [
+        change(
+            "both",
+            SeatStatus.PARTIAL,
+            SeatStatus.PARTIAL,
+            modes_before=frozenset({InputMode.ADB}),
+        )
+    ]
+
+
+def test_conflict_resolution_emits_a_ready_modes_change():
+    # The capture card is attached too: under MODE_ROLES, HID needs board+card.
+    registry = SeatRegistry(table())
+    registry.apply(event(ATTACH, "ctrl2", serial="a"))
+    registry.apply(event(ATTACH, "ctrl2", serial="b"))
+    registry.apply(event(ATTACH, "phone2", serial="a"))
+    registry.apply(event(ATTACH, "phone2", serial="b"))
+    registry.apply(event(ATTACH, "card", "p3"))
+    assert registry.state("both").status is SeatStatus.CONFLICT
+    assert registry.state("both").ready_modes == frozenset()
+
+    assert changes(registry, event(DETACH, "ctrl2", serial="a")) == [
+        change(
+            "both",
+            SeatStatus.CONFLICT,
+            SeatStatus.CONFLICT,
+            modes_after=frozenset({InputMode.HID}),
+        )
+    ]
+
+
 # ---- Matching rules ---------------------------------------------------------
 
 
@@ -233,7 +302,7 @@ def test_both_identifiers_must_agree():
     assert changes(registry, event(ATTACH, "ctrl", "wrong")) == []
     assert changes(registry, event(ATTACH, "wrong", "p9")) == []
     assert changes(registry, event(ATTACH, "ctrl", "p9")) == [
-        change("strict", SeatStatus.ABSENT, SeatStatus.READY)
+        change("strict", SeatStatus.ABSENT, SeatStatus.READY, modes_after=frozenset({InputMode.ADB}))
     ]
 
 
@@ -245,7 +314,12 @@ def test_second_device_claiming_a_role_raises_conflict():
     changes(registry, event(ATTACH, "ctrl"))
     changes(registry, event(ATTACH, "card", "p1", serial="original"))
     assert changes(registry, event(ATTACH, "other", "p1", serial="other-card")) == [
-        change("std", SeatStatus.READY, SeatStatus.CONFLICT)
+        change(
+            "std",
+            SeatStatus.READY,
+            SeatStatus.CONFLICT,
+            modes_before=frozenset({InputMode.HID}),
+        )
     ]
     assert registry.state("std") == state(
         "std", SeatStatus.CONFLICT, frozenset({HID}), frozenset({CARD})
@@ -259,7 +333,7 @@ def test_conflict_clears_when_the_intruder_detaches():
     changes(registry, event(ATTACH, "other", "p1", serial="extra"))
     assert registry.state("std").status is SeatStatus.CONFLICT
     assert changes(registry, event(DETACH, "other", "p1", serial="extra")) == [
-        change("std", SeatStatus.CONFLICT, SeatStatus.READY)
+        change("std", SeatStatus.CONFLICT, SeatStatus.READY, modes_after=frozenset({InputMode.HID}))
     ]
 
 
@@ -310,8 +384,8 @@ def test_one_event_can_move_two_seats():
     )
     registry = SeatRegistry(crossed)
     assert changes(registry, event(ATTACH, "shared", "shared")) == [
-        change("a", SeatStatus.ABSENT, SeatStatus.READY),
-        change("b", SeatStatus.ABSENT, SeatStatus.READY),
+        change("a", SeatStatus.ABSENT, SeatStatus.READY, modes_after=frozenset({InputMode.ADB})),
+        change("b", SeatStatus.ABSENT, SeatStatus.READY, modes_after=frozenset({InputMode.ADB})),
     ]
 
 
@@ -388,7 +462,7 @@ def test_resolve_all_drains_a_fake_feed_and_closes_it():
     registry = SeatRegistry(table())
     assert resolve_all(registry, feed) == (
         change("std", SeatStatus.ABSENT, SeatStatus.PARTIAL),
-        change("std", SeatStatus.PARTIAL, SeatStatus.READY),
+        change("std", SeatStatus.PARTIAL, SeatStatus.READY, modes_after=frozenset({InputMode.HID})),
     )
     assert feed.closed is True
 

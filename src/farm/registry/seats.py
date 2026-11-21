@@ -77,12 +77,12 @@ class SeatRegistry:
         return tuple(self.state(seat.seat_id) for seat in self._table.seats)
 
     def apply(self, event: DeviceEvent) -> tuple[SeatChange, ...]:
-        """Apply one event, returning the status transitions it caused."""
+        """Apply one event, returning the status and mode transitions it caused."""
         changes: list[SeatChange] = []
         identity = _Identity.from_event(event)
         for seat in self._table.seats:
             occupancy = self._occupancy[seat.seat_id]
-            before = self._snapshot(seat, occupancy).status
+            before = self._snapshot(seat, occupancy)
             if event.kind is DeviceEventKind.ATTACHED:
                 matched = [
                     role for role, match in seat.devices.items() if match.matches(event)
@@ -112,9 +112,17 @@ class SeatRegistry:
                             claims.difference_update(c for c in matches if c == identity)
                         if not claims:
                             del targets[role]
-            after = self._snapshot(seat, occupancy).status
-            if before is not after:
-                changes.append(SeatChange(seat_id=seat.seat_id, before=before, after=after))
+            after = self._snapshot(seat, occupancy)
+            if before.status is not after.status or before.ready_modes != after.ready_modes:
+                changes.append(
+                    SeatChange(
+                        seat_id=seat.seat_id,
+                        before=before.status,
+                        after=after.status,
+                        ready_modes_before=before.ready_modes,
+                        ready_modes_after=after.ready_modes,
+                    )
+                )
         return tuple(changes)
 
     @staticmethod
