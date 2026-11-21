@@ -26,7 +26,10 @@ class DeviceEvent(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     kind: DeviceEventKind
-    by_id: NonBlank  # stable name, e.g. /dev/serial/by-id/... entry
+    # Stable name, unique per physical device (CR-3). A serial-less device such
+    # as a UVC card gets a synthesized id from vendor:product + USB port path;
+    # the udev adapter owns that synthesis at the seam.
+    by_id: NonBlank
     by_path: NonBlank | None = None  # physical USB port path
     vendor_id: UsbId  # four lowercase hex digits
     product_id: UsbId

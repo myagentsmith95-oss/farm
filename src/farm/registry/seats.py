@@ -8,8 +8,8 @@ SeatChange are derived from those claims; no status is stored on its own.
 from dataclasses import dataclass, field
 
 from farm.contracts.events import DeviceEvent, DeviceEventKind, DeviceEventSource
-from farm.contracts.models import InputMode
 from farm.contracts.seats import (
+    MODE_ROLES,
     DeviceRole,
     SeatChange,
     SeatSpec,
@@ -31,8 +31,8 @@ class _Identity:
     Caveat: if a source reports the same device with inconsistent optional
     fields on two ATTACHes, they are treated as different claimants and the
     role goes to CONFLICT. udev normally reports these consistently. A DETACH
-    with fewer optional fields still releases the claim (same_device), because
-    a source may report less information when a device disappears.
+    with fewer optional fields releases a lone matching claim, but if several
+    claims match it releases only an exact field-for-field match (CR-3).
     """
 
     by_id: str
@@ -51,14 +51,6 @@ class _Identity:
             and (self.by_path is None or other.by_path is None or self.by_path == other.by_path)
             and (self.serial is None or other.serial is None or self.serial == other.serial)
         )
-
-
-# HID needs the capture card too: input alone cannot close the capture ->
-# recognise -> act -> verify loop. ADB reads and controls through the phone.
-MODE_ROLES: dict[InputMode, frozenset[DeviceRole]] = {
-    InputMode.HID: frozenset({DeviceRole.HID_BOARD, DeviceRole.CAPTURE_CARD}),
-    InputMode.ADB: frozenset({DeviceRole.PHONE}),
-}
 
 
 @dataclass
@@ -103,15 +95,22 @@ class SeatRegistry:
                     for role in matched:
                         targets.setdefault(role, set()).add(identity)
             else:
-                # A detach may match fewer roles than the attach did, or omit
-                # optional identifiers. Release every claim for this device in
-                # both dicts so an ambiguous claim cannot wedge the seat.
+                # C27: release a lone matching claim even if the detach omits
+                # optional identifiers. CR-3: if several claims match, they
+                # cannot all be the departing device (by_id is unique per
+                # physical device), so release only an exact field-for-field
+                # match. No exact match means stay CONFLICT until one arrives.
                 for targets in (occupancy.claims, occupancy.ambiguous):
                     for role in list(targets):
-                        targets[role] = {
-                            claim for claim in targets[role] if not claim.same_device(identity)
-                        }
-                        if not targets[role]:
+                        claims = targets[role]
+                        matches = [c for c in claims if c.same_device(identity)]
+                        if not matches:
+                            continue
+                        if len(matches) == 1:
+                            claims.difference_update(matches)
+                        else:
+                            claims.difference_update(c for c in matches if c == identity)
+                        if not claims:
                             del targets[role]
             after = self._snapshot(seat, occupancy).status
             if before is not after:
