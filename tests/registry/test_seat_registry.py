@@ -25,22 +25,16 @@ HID = DeviceRole.HID_BOARD
 CARD = DeviceRole.CAPTURE_CARD
 PHONE = DeviceRole.PHONE
 
-MODE_ROLE = {InputMode.HID: HID, InputMode.ADB: PHONE}
-SEAT_MODES = {
-    "std": (InputMode.HID,),
-    "adb": (InputMode.ADB,),
-    "both": (InputMode.HID, InputMode.ADB),
-}
-
-
-def state(seat, status, present=frozenset(), conflicted=frozenset()):
-    ready = frozenset(m for m in SEAT_MODES[seat] if MODE_ROLE[m] in present)
+def state(seat, status, present=frozenset(), conflicted=frozenset(), ready_modes=frozenset()):
+    # ready_modes is always an explicit literal: deriving it from `present`
+    # here would re-encode production's formula and make equality tests
+    # self-confirming (review v4, T2).
     return SeatState(
         seat_id=seat,
         status=status,
         present=present,
         conflicted=conflicted,
-        ready_modes=ready,
+        ready_modes=ready_modes,
     )
 
 
@@ -130,7 +124,9 @@ def test_standard_seat_absent_to_partial_to_ready_and_back():
     assert changes(registry, event(ATTACH, "ignored", "p1")) == [
         change("std", SeatStatus.PARTIAL, SeatStatus.READY)
     ]
-    assert registry.state("std") == state("std", SeatStatus.READY, frozenset({HID, CARD}))
+    assert registry.state("std") == state(
+        "std", SeatStatus.READY, frozenset({HID, CARD}), ready_modes=frozenset({InputMode.HID})
+    )
 
     assert changes(registry, event(DETACH, "ignored", "p1")) == [
         change("std", SeatStatus.READY, SeatStatus.PARTIAL)
@@ -146,7 +142,9 @@ def test_adb_only_seat_goes_ready_on_phone_attach():
     assert changes(registry, event(ATTACH, "phone")) == [
         change("adb", SeatStatus.ABSENT, SeatStatus.READY)
     ]
-    assert registry.state("adb") == state("adb", SeatStatus.READY, frozenset({PHONE}))
+    assert registry.state("adb") == state(
+        "adb", SeatStatus.READY, frozenset({PHONE}), ready_modes=frozenset({InputMode.ADB})
+    )
 
 
 def test_dual_mode_seat_transitions_through_all_states():
@@ -171,10 +169,11 @@ def test_dual_mode_seat_reports_adb_ready_when_only_the_phone_is_attached():
     assert state.ready_modes == frozenset({InputMode.ADB})
 
 
-def test_hid_ready_modes_track_the_standard_seats_hardware():
+def test_hid_ready_modes_require_the_capture_card():
+    # R2: HID input alone cannot close the capture-recognise-act-verify loop.
     registry = SeatRegistry(table())
     registry.apply(event(ATTACH, "ctrl"))
-    assert registry.state("std").ready_modes == frozenset({InputMode.HID})
+    assert registry.state("std").ready_modes == frozenset()
     registry.apply(event(ATTACH, "ignored", "p1"))
     assert registry.state("std").ready_modes == frozenset({InputMode.HID})
 
@@ -185,6 +184,21 @@ def test_ready_modes_is_empty_for_absent_and_conflicted_seats():
     registry.apply(event(ATTACH, "ctrl", "p1"))
     assert registry.state("std").status is SeatStatus.CONFLICT
     assert registry.state("std").ready_modes == frozenset()
+
+
+def test_conflict_removes_only_the_modes_whose_roles_are_conflicted():
+    # R3: a contested PHONE removes ADB but leaves the fully present HID path
+    # usable. ready_modes is per-mode, not a restatement of status.
+    registry = SeatRegistry(table())
+    registry.apply(event(ATTACH, "ctrl2"))
+    registry.apply(event(ATTACH, "ignored", "p3"))
+    registry.apply(event(ATTACH, "phone2", serial="a"))
+    registry.apply(event(ATTACH, "phone2", serial="b"))
+    state = registry.state("both")
+    assert state.status is SeatStatus.CONFLICT
+    assert state.conflicted == frozenset({PHONE})
+    assert state.present == frozenset({HID, CARD})
+    assert state.ready_modes == frozenset({InputMode.HID})
 
 
 # ---- Matching rules ---------------------------------------------------------
@@ -313,6 +327,23 @@ def test_one_event_cannot_fill_two_roles_of_the_same_seat():
     assert changes(registry, event(DETACH, "ctrl", "p1")) == [
         change("std", SeatStatus.CONFLICT, SeatStatus.ABSENT)
     ]
+
+
+def test_asymmetric_detach_clears_an_ambiguous_claim():
+    # R1: a detach that omits the optional by_path, or matches fewer roles,
+    # must still release every role the ambiguous claim occupies.
+    registry = SeatRegistry(table())
+    registry.apply(event(ATTACH, "ctrl", "p1", serial="s"))
+    assert registry.state("std").status is SeatStatus.CONFLICT
+    assert changes(registry, event(DETACH, "ctrl", serial="s")) == [
+        change("std", SeatStatus.CONFLICT, SeatStatus.ABSENT)
+    ]
+    assert registry.state("std").status is SeatStatus.ABSENT
+
+    # A genuinely different claimant must still be left alone.
+    registry.apply(event(ATTACH, "ctrl", "p1", serial="s"))
+    assert changes(registry, event(DETACH, "ctrl", serial="other")) == []
+    assert registry.state("std").status is SeatStatus.CONFLICT
 
 
 # ---- Finite feed integration ------------------------------------------------
