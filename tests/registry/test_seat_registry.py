@@ -25,22 +25,16 @@ HID = DeviceRole.HID_BOARD
 CARD = DeviceRole.CAPTURE_CARD
 PHONE = DeviceRole.PHONE
 
-MODE_ROLE = {InputMode.HID: HID, InputMode.ADB: PHONE}
-SEAT_MODES = {
-    "std": (InputMode.HID,),
-    "adb": (InputMode.ADB,),
-    "both": (InputMode.HID, InputMode.ADB),
-}
-
-
-def state(seat, status, present=frozenset(), conflicted=frozenset()):
-    ready = frozenset(m for m in SEAT_MODES[seat] if MODE_ROLE[m] in present)
+def state(seat, status, present=frozenset(), conflicted=frozenset(), ready_modes=frozenset()):
+    # ready_modes is always an explicit literal: deriving it from `present`
+    # here would re-encode production's formula and make equality tests
+    # self-confirming (review v4, T2).
     return SeatState(
         seat_id=seat,
         status=status,
         present=present,
         conflicted=conflicted,
-        ready_modes=ready,
+        ready_modes=ready_modes,
     )
 
 
@@ -130,7 +124,9 @@ def test_standard_seat_absent_to_partial_to_ready_and_back():
     assert changes(registry, event(ATTACH, "ignored", "p1")) == [
         change("std", SeatStatus.PARTIAL, SeatStatus.READY)
     ]
-    assert registry.state("std") == state("std", SeatStatus.READY, frozenset({HID, CARD}))
+    assert registry.state("std") == state(
+        "std", SeatStatus.READY, frozenset({HID, CARD}), ready_modes=frozenset({InputMode.HID})
+    )
 
     assert changes(registry, event(DETACH, "ignored", "p1")) == [
         change("std", SeatStatus.READY, SeatStatus.PARTIAL)
@@ -146,7 +142,9 @@ def test_adb_only_seat_goes_ready_on_phone_attach():
     assert changes(registry, event(ATTACH, "phone")) == [
         change("adb", SeatStatus.ABSENT, SeatStatus.READY)
     ]
-    assert registry.state("adb") == state("adb", SeatStatus.READY, frozenset({PHONE}))
+    assert registry.state("adb") == state(
+        "adb", SeatStatus.READY, frozenset({PHONE}), ready_modes=frozenset({InputMode.ADB})
+    )
 
 
 def test_dual_mode_seat_transitions_through_all_states():

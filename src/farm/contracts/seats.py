@@ -100,7 +100,12 @@ class SeatTable(_Model):
 class SeatState(_Model):
     """Inventory snapshot. status/present describe which hardware is plugged
     in; ready_modes answers the scheduler's question — which input modes are
-    usable right now. A PARTIAL seat can still be READY via a fallback mode."""
+    usable right now. A PARTIAL seat can still be usable via a fallback mode.
+
+    CONFLICT removes only the modes whose required roles are conflicted; modes
+    whose roles remain present stay usable. ready_modes is therefore computed
+    per mode and is not a restatement of status — schedulers must consult it
+    rather than gating on status alone."""
 
     seat_id: NonBlank
     status: SeatStatus

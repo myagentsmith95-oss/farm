@@ -29,11 +29,10 @@ class _Identity:
     distinguishable, so by_id (and serial when reported) are included too.
 
     Caveat: if a source reports the same device with inconsistent optional
-    fields -- one event with by_path=None, the next with a path -- the two are
-    treated as different claimants and the role goes to CONFLICT. udev normally
-    reports these consistently. If a real adapter proves otherwise, normalise
-    the identity in that adapter at the seam; do not relax it here, where it
-    would also hide genuine port collisions.
+    fields on two ATTACHes, they are treated as different claimants and the
+    role goes to CONFLICT. udev normally reports these consistently. A DETACH
+    with fewer optional fields still releases the claim (same_device), because
+    a source may report less information when a device disappears.
     """
 
     by_id: str
@@ -44,10 +43,21 @@ class _Identity:
     def from_event(cls, event: DeviceEvent) -> "_Identity":
         return cls(event.by_id, event.by_path, event.serial)
 
+    def same_device(self, other: "_Identity") -> bool:
+        """Every identifier both reports must agree; a missing field means
+        'unspecified', not 'a different device'."""
+        return (
+            self.by_id == other.by_id
+            and (self.by_path is None or other.by_path is None or self.by_path == other.by_path)
+            and (self.serial is None or other.serial is None or self.serial == other.serial)
+        )
 
-MODE_ROLE: dict[InputMode, DeviceRole] = {
-    InputMode.HID: DeviceRole.HID_BOARD,
-    InputMode.ADB: DeviceRole.PHONE,
+
+# HID needs the capture card too: input alone cannot close the capture ->
+# recognise -> act -> verify loop. ADB reads and controls through the phone.
+MODE_ROLES: dict[InputMode, frozenset[DeviceRole]] = {
+    InputMode.HID: frozenset({DeviceRole.HID_BOARD, DeviceRole.CAPTURE_CARD}),
+    InputMode.ADB: frozenset({DeviceRole.PHONE}),
 }
 
 
@@ -81,21 +91,27 @@ class SeatRegistry:
         for seat in self._table.seats:
             occupancy = self._occupancy[seat.seat_id]
             before = self._snapshot(seat, occupancy).status
-            matched = [
-                role for role, match in seat.devices.items() if match.matches(event)
-            ]
-            if matched:
-                # One event is one physical device: it may claim at most one
-                # role per seat. Several matches mean an ambiguous claim, so
-                # every matched role is contested rather than filled.
-                targets = occupancy.ambiguous if len(matched) > 1 else occupancy.claims
-                for role in matched:
-                    claims = targets.setdefault(role, set())
-                    if event.kind is DeviceEventKind.ATTACHED:
-                        claims.add(identity)
-                    else:
-                        claims.discard(identity)
-                        if not claims:
+            if event.kind is DeviceEventKind.ATTACHED:
+                matched = [
+                    role for role, match in seat.devices.items() if match.matches(event)
+                ]
+                if matched:
+                    # One event is one physical device: it may claim at most one
+                    # role per seat. Several matches mean an ambiguous claim, so
+                    # every matched role is contested rather than filled.
+                    targets = occupancy.ambiguous if len(matched) > 1 else occupancy.claims
+                    for role in matched:
+                        targets.setdefault(role, set()).add(identity)
+            else:
+                # A detach may match fewer roles than the attach did, or omit
+                # optional identifiers. Release every claim for this device in
+                # both dicts so an ambiguous claim cannot wedge the seat.
+                for targets in (occupancy.claims, occupancy.ambiguous):
+                    for role in list(targets):
+                        targets[role] = {
+                            claim for claim in targets[role] if not claim.same_device(identity)
+                        }
+                        if not targets[role]:
                             del targets[role]
             after = self._snapshot(seat, occupancy).status
             if before is not after:
@@ -125,7 +141,7 @@ class SeatRegistry:
         else:
             status = SeatStatus.ABSENT
         ready_modes = frozenset(
-            mode for mode in spec.profile.input_modes if MODE_ROLE[mode] in present
+            mode for mode in spec.profile.input_modes if MODE_ROLES[mode] <= present
         )
         return SeatState(
             seat_id=spec.seat_id,
