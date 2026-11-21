@@ -62,6 +62,29 @@ def test_key_rejects_blank_code(code):
         Key(code=code)
 
 
+CANONICAL_KEYS = [
+    "HOME",
+    "BACK",
+    "APP_SWITCH",
+    "ENTER",
+    "DEL",
+    "POWER",
+    "VOLUME_UP",
+    "VOLUME_DOWN",
+]
+
+
+@pytest.mark.parametrize("code", CANONICAL_KEYS)
+def test_key_accepts_every_canonical_code(code):
+    assert Key(code=code).code == code
+
+
+def test_key_rejects_an_unknown_code():
+    # N3: backends must not invent their own key language per device.
+    with pytest.raises(ValidationError):
+        Key(code="NOT_A_KEY")
+
+
 def test_text_rejects_empty_value():
     with pytest.raises(ValidationError):
         Text(value="")

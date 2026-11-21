@@ -34,6 +34,12 @@ class InputBackendContract:
         assert isinstance(backend, InputBackend)
         assert isinstance(backend.mode, InputMode)
 
+    def test_perform_docstring_pins_completion_semantics(self, backend):
+        # N4: a queued swipe and a finished swipe are different budgets.
+        doc = InputBackend.perform.__doc__ or ""
+        assert "fully injected" in doc
+        assert "gesture completes" in doc
+
     @pytest.mark.parametrize("action", SAMPLE_ACTIONS, ids=lambda a: a.kind)
     def test_supports_matches_perform(self, backend, action):
         if backend.supports(action):
