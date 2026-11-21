@@ -226,8 +226,8 @@ def test_by_id_match_ignores_a_non_matching_path():
 
 def test_both_identifiers_must_agree():
     spec_both = SeatSpec(
-        profile=DeviceProfile(device_id="strict", input_modes=[InputMode.HID]),
-        devices={HID: DeviceMatch(by_id="ctrl", by_path="p9")},
+        profile=DeviceProfile(device_id="strict", input_modes=[InputMode.ADB]),
+        devices={PHONE: DeviceMatch(by_id="ctrl", by_path="p9")},
     )
     registry = SeatRegistry(SeatTable(seats=[spec_both]))
     assert changes(registry, event(ATTACH, "ctrl", "wrong")) == []
@@ -304,8 +304,8 @@ def test_one_event_can_move_two_seats():
     # A by_id that collides with another seat's by_path namespace.
     crossed = SeatTable(
         seats=[
-            spec("a", (InputMode.HID,), {HID: DeviceMatch(by_id="shared")}),
-            spec("b", (InputMode.HID,), {HID: DeviceMatch(by_path="shared")}),
+            spec("a", (InputMode.ADB,), {PHONE: DeviceMatch(by_id="shared")}),
+            spec("b", (InputMode.ADB,), {PHONE: DeviceMatch(by_path="shared")}),
         ]
     )
     registry = SeatRegistry(crossed)
@@ -344,6 +344,36 @@ def test_asymmetric_detach_clears_an_ambiguous_claim():
     registry.apply(event(ATTACH, "ctrl", "p1", serial="s"))
     assert changes(registry, event(DETACH, "ctrl", serial="other")) == []
     assert registry.state("std").status is SeatStatus.CONFLICT
+
+
+def _same_id_card_seat():
+    return SeatSpec(
+        profile=DeviceProfile(device_id="cards", input_modes=[InputMode.HID]),
+        devices={HID: DeviceMatch(by_id="board"), CARD: DeviceMatch(by_id="card")},
+    )
+
+
+def test_id_only_detach_does_not_release_two_same_id_claims():
+    # CR-3: by_id is unique per physical device, so two claims with the same
+    # id mean at least one optional identifier is missing from the detach.
+    registry = SeatRegistry(SeatTable(seats=[_same_id_card_seat()]))
+    registry.apply(event(ATTACH, "board"))
+    registry.apply(event(ATTACH, "card", serial="a"))
+    registry.apply(event(ATTACH, "card", serial="b"))
+    assert registry.state("cards").status is SeatStatus.CONFLICT
+
+    registry.apply(event(DETACH, "card"))
+    assert registry.state("cards").status is SeatStatus.CONFLICT
+    assert registry.state("cards").conflicted == frozenset({CARD})
+
+    # A serial-carrying detach releases only its own claim.
+    registry.apply(event(DETACH, "card", serial="a"))
+    assert registry.state("cards").status is SeatStatus.READY
+    assert registry.state("cards").present == frozenset({HID, CARD})
+
+    # The remaining claim can be released by an exact detach.
+    registry.apply(event(DETACH, "card", serial="b"))
+    assert registry.state("cards").status is SeatStatus.PARTIAL
 
 
 # ---- Finite feed integration ------------------------------------------------
