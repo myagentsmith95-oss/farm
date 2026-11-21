@@ -89,7 +89,7 @@ class SeatSpec(_Model):
 class SeatTable(_Model):
     """The enrollment table: every seat the farm knows about."""
 
-    seats: Annotated[list[SeatSpec], Field(min_length=1)]
+    seats: Annotated[tuple[SeatSpec, ...], Field(min_length=1)]
 
     @model_validator(mode="after")
     def _identifiers_are_unique(self):

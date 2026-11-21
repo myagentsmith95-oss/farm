@@ -117,6 +117,22 @@ def test_states_are_snapshots():
     )
 
 
+def test_registry_does_not_alias_the_enrollment_table():
+    t = SeatTable(
+        seats=[
+            spec(
+                "std",
+                (InputMode.HID,),
+                {HID: DeviceMatch(by_id="ctrl"), CARD: DeviceMatch(by_path="p1")},
+            )
+        ]
+    )
+    registry = SeatRegistry(t)
+    before = registry.states()
+    t.seats[0].devices.clear()  # SeatSpec is frozen; the devices dict is not
+    assert registry.states() == before
+
+
 # ---- Standard seat lifecycle ------------------------------------------------
 
 

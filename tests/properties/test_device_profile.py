@@ -35,13 +35,20 @@ def test_rejects_duplicate_modes(mode):
 )
 def test_accepts_valid_lists_and_keeps_order(given_modes):
     profile = DeviceProfile(device_id="seat-01", input_modes=given_modes)
-    assert profile.input_modes == given_modes
+    assert profile.input_modes == tuple(given_modes)
 
 
 @given(modes)
 def test_any_unique_nonempty_list_is_accepted_in_order(given_modes):
     profile = DeviceProfile(device_id="seat-01", input_modes=given_modes)
-    assert profile.input_modes == given_modes
+    assert profile.input_modes == tuple(given_modes)
+
+
+def test_input_modes_is_a_tuple_that_rejects_mutation():
+    profile = DeviceProfile(device_id="seat-01", input_modes=[InputMode.HID])
+    assert isinstance(profile.input_modes, tuple)
+    with pytest.raises(AttributeError):
+        profile.input_modes.append(InputMode.ADB)
 
 
 @given(st.text(alphabet=" \t\n", max_size=5))
@@ -62,7 +69,7 @@ def test_rejects_extra_fields():
 
 def test_accepts_mode_names_as_strings():
     profile = DeviceProfile(device_id="seat-01", input_modes=["hid", "adb"])
-    assert profile.input_modes == [InputMode.HID, InputMode.ADB]
+    assert profile.input_modes == (InputMode.HID, InputMode.ADB)
 
 
 def test_profile_is_immutable():

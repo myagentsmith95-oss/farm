@@ -5,6 +5,7 @@ the identities currently claiming each role, so a second device at the same
 physical port is a conflict rather than a silent replacement. SeatStatus and
 SeatChange are derived from those claims; no status is stored on its own.
 """
+import copy
 from dataclasses import dataclass, field
 
 from farm.contracts.events import DeviceEvent, DeviceEventKind, DeviceEventSource
@@ -66,9 +67,11 @@ class SeatRegistry:
     """Resolves attach/detach events against an enrollment table of seats."""
 
     def __init__(self, table: SeatTable) -> None:
-        self._table = table
-        self._specs = {seat.seat_id: seat for seat in table.seats}
-        self._occupancy = {seat.seat_id: _Occupancy() for seat in table.seats}
+        # Own the enrollment: the caller may mutate nested data after handing
+        # us the table (SeatSpec.devices is deliberately left unfrozen).
+        self._table = copy.deepcopy(table)
+        self._specs = {seat.seat_id: seat for seat in self._table.seats}
+        self._occupancy = {seat.seat_id: _Occupancy() for seat in self._table.seats}
 
     def state(self, seat_id: str) -> SeatState:
         return self._snapshot(self._specs[seat_id], self._occupancy[seat_id])

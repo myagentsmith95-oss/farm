@@ -23,11 +23,11 @@ class DeviceProfile(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     device_id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-    input_modes: Annotated[list[InputMode], Field(min_length=1)]
+    input_modes: Annotated[tuple[InputMode, ...], Field(min_length=1)]
 
     @field_validator("input_modes")
     @classmethod
-    def _no_duplicates(cls, modes: list[InputMode]) -> list[InputMode]:
+    def _no_duplicates(cls, modes: tuple[InputMode, ...]) -> tuple[InputMode, ...]:
         if len(set(modes)) != len(modes):
             raise ValueError("input_modes must not contain duplicates")
         return modes

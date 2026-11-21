@@ -27,7 +27,7 @@ class FakeEventLog:
             ts_ns=ts_ns,
             kind=kind,
             device_id=device_id,
-            data=dict(data or {}),
+            data=copy.deepcopy(dict(data or {})),
         )
         self._events.append(event)
         self._last_ts = ts_ns
