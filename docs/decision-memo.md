@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.13
-**Supersedes:** ADF-DEC-V1.12 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.14
+**Supersedes:** ADF-DEC-V1.13 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 21, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -46,6 +46,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C31 | CR-2 (review v4, amended): `MODE_ROLES` lives once in `contracts/seats.py` and is shared by enrollment and readiness. Enrollment accepts a seat when at least one declared mode has all its required roles, rather than requiring every mode — a dual-mode seat with no capture card remains a valid ADB seat. A board-only HID seat is rejected. | ch. 2.1, ch. 4.2, C19/C28 | settled |
 | C32 | CR-3 (review v4, amended): every physical device gets a stable `by_id` unique to it; serial-less devices such as UVC cards get a synthesized `vendor:product` + USB port path, owned by the udev adapter at the seam. On DETACH, a lone matching claim is released even with omitted optional fields (C27), but when several claims match only an exact field-for-field match is released; otherwise the seat stays CONFLICT until such a detach arrives. | ch. 2.1, ch. 4.1, Table 5 #2 | settled |
 | C33 | CR-1 (review v4): `SeatChange` now carries `ready_modes_before` and `ready_modes_after` (default empty), and `apply()` emits a change when the usable mode set changes even if `SeatStatus` does not. A scheduler consuming the change stream can no longer miss a fallback becoming usable or disappearing. The three-field construction stays valid. | ch. 4.2, ch. 6, C26 | settled |
+| C34 | CR-9 (review v4): `tests/` and `tests/contracts/` are packages and all five fake suites import their suites as `tests.contracts.<suite>`. The same tests now collect under pytest's default prepend mode and under `--import-mode=importlib`, so the W2 adapter tests can reuse the suites from any directory. An AST guard rejects bare suite imports; `repo_audit.sh` EXPECTED covers the new files. | ch. 4.1, C17 | settled |
 
 **Open items carried forward**
 
