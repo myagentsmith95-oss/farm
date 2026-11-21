@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.17
-**Supersedes:** ADF-DEC-V1.16 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.18
+**Supersedes:** ADF-DEC-V1.17 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 22, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -50,6 +50,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C35 | N3/N4, amended by `docs/ARCHITECTURE.md` §4.4 / D-4 / D-7: `Key.code` is a canonical `KeyCode` StrEnum with exactly five values — `HOME`, `BACK`, `ENTER`, `DEL`, `APP_SWITCH`. HOME/BACK map to consumer usages 0x223/0x224 in composite firmware, ENTER/DEL to keyboard usages 0x28/0x2A; APP_SWITCH has no HID usage, so the HID backend reports `supports() == False` and scenarios use a touch macro or ADB keycode 187. Power, volume and mute are out of scope (D-4). Uppercase values keep existing `Key(code="HOME")` scenarios working. `InputBackend.perform()` blocks until full injection, and for Swipe until the gesture completes; the Maa stub records the canonical string and notes that real Maa's W6 adapter owns the integer-keycode mapping. | ch. 2.1, ch. 4.1, D6, D-4, D-7 | settled |
 | C36 | Task 12: `docs/ARCHITECTURE.md` becomes the hardware source of truth. Corrected in this memo: the ESP32 is a HID digitizer, not a pointer (§12.1); no L1 tap-grid, alignment = active-area crop + `RES` (§12.2); firmware base is `stop-esp32-s3-to-reboot` touch-fw-2, D3 is session ideas only (§12.3); serial is UART0 over the USB-serial bridge with no-reset discipline, not CDC (§12.5); standard-seat ADB fallback is Wi-Fi (§12.6); dual-client proves verb shape only (§12.7); board health is `BOOT`/`PING`, not udev (§12.8). HANDOFF.md was deleted. | ch. 2.2, ch. 4, ch. 7, ch. 10, D3, arch §12 | settled |
 | C37 | CR-5 (Task 5): `FakeDeviceEventSource` has a separate preload list; `events()` yields coldplug devices in preload order before any live event, and `close()` seals the feed (buffered events still drain; later `push`/`preload` are ignored). The reusable suite pins ordering, post-close drops, and preload+detach; an anti-vacuity check proved the ordering test fails when preload is aliased to push. The seal is a fake determinism choice, documented as such; real adapters manage their own lifetime. | ch. 4.1, C17, C29 | settled |
+| C38 | CR-4 (Task 4): `LeaseManager.is_valid()` now states that it checks the **current grant's** expiry, not the snapshot's own `expires_ns`. `renew()` extends the grant for every same-token snapshot, so a pre-renew lease stays valid until the renewed grant expires. The reusable suite pins this behavior and the docstring. | ch. 4.1, C15 | settled |
 
 **Open items carried forward**
 
