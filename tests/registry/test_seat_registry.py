@@ -21,13 +21,27 @@ def change(seat, before, after):
     return SeatChange(seat_id=seat, before=before, after=after)
 
 
-def state(seat, status, present=frozenset(), conflicted=frozenset()):
-    return SeatState(seat_id=seat, status=status, present=present, conflicted=conflicted)
-
-
 HID = DeviceRole.HID_BOARD
 CARD = DeviceRole.CAPTURE_CARD
 PHONE = DeviceRole.PHONE
+
+MODE_ROLE = {InputMode.HID: HID, InputMode.ADB: PHONE}
+SEAT_MODES = {
+    "std": (InputMode.HID,),
+    "adb": (InputMode.ADB,),
+    "both": (InputMode.HID, InputMode.ADB),
+}
+
+
+def state(seat, status, present=frozenset(), conflicted=frozenset()):
+    ready = frozenset(m for m in SEAT_MODES[seat] if MODE_ROLE[m] in present)
+    return SeatState(
+        seat_id=seat,
+        status=status,
+        present=present,
+        conflicted=conflicted,
+        ready_modes=ready,
+    )
 
 
 def spec(seat_id, modes, devices):

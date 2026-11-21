@@ -8,6 +8,7 @@ SeatChange are derived from those claims; no status is stored on its own.
 from dataclasses import dataclass, field
 
 from farm.contracts.events import DeviceEvent, DeviceEventKind, DeviceEventSource
+from farm.contracts.models import InputMode
 from farm.contracts.seats import (
     DeviceRole,
     SeatChange,
@@ -44,9 +45,19 @@ class _Identity:
         return cls(event.by_id, event.by_path, event.serial)
 
 
+MODE_ROLE: dict[InputMode, DeviceRole] = {
+    InputMode.HID: DeviceRole.HID_BOARD,
+    InputMode.ADB: DeviceRole.PHONE,
+}
+
+
 @dataclass
 class _Occupancy:
     claims: dict[DeviceRole, set[_Identity]] = field(default_factory=dict)
+    # An event whose identifiers match several roles of one seat is one
+    # physical device claiming them all. Record it separately so it contests
+    # every matched role instead of filling them (M1).
+    ambiguous: dict[DeviceRole, set[_Identity]] = field(default_factory=dict)
 
 
 class SeatRegistry:
@@ -70,16 +81,22 @@ class SeatRegistry:
         for seat in self._table.seats:
             occupancy = self._occupancy[seat.seat_id]
             before = self._snapshot(seat, occupancy).status
-            for role, match in seat.devices.items():
-                if not match.matches(event):
-                    continue
-                claims = occupancy.claims.setdefault(role, set())
-                if event.kind is DeviceEventKind.ATTACHED:
-                    claims.add(identity)
-                else:
-                    claims.discard(identity)
-                    if not claims:
-                        del occupancy.claims[role]
+            matched = [
+                role for role, match in seat.devices.items() if match.matches(event)
+            ]
+            if matched:
+                # One event is one physical device: it may claim at most one
+                # role per seat. Several matches mean an ambiguous claim, so
+                # every matched role is contested rather than filled.
+                targets = occupancy.ambiguous if len(matched) > 1 else occupancy.claims
+                for role in matched:
+                    claims = targets.setdefault(role, set())
+                    if event.kind is DeviceEventKind.ATTACHED:
+                        claims.add(identity)
+                    else:
+                        claims.discard(identity)
+                        if not claims:
+                            del targets[role]
             after = self._snapshot(seat, occupancy).status
             if before is not after:
                 changes.append(SeatChange(seat_id=seat.seat_id, before=before, after=after))
@@ -87,11 +104,16 @@ class SeatRegistry:
 
     @staticmethod
     def _snapshot(spec: SeatSpec, occupancy: _Occupancy) -> SeatState:
-        present = frozenset(
-            role for role, claims in occupancy.claims.items() if len(claims) == 1
-        )
+        contested = set(occupancy.claims) | set(occupancy.ambiguous)
         conflicted = frozenset(
-            role for role, claims in occupancy.claims.items() if len(claims) > 1
+            role
+            for role in contested
+            if len(occupancy.claims.get(role, ())) > 1 or occupancy.ambiguous.get(role)
+        )
+        present = frozenset(
+            role
+            for role, claims in occupancy.claims.items()
+            if len(claims) == 1 and not occupancy.ambiguous.get(role)
         )
         required = set(spec.devices)
         if conflicted:
@@ -102,11 +124,15 @@ class SeatRegistry:
             status = SeatStatus.PARTIAL
         else:
             status = SeatStatus.ABSENT
+        ready_modes = frozenset(
+            mode for mode in spec.profile.input_modes if MODE_ROLE[mode] in present
+        )
         return SeatState(
             seat_id=spec.seat_id,
             status=status,
             present=present,
             conflicted=conflicted,
+            ready_modes=ready_modes,
         )
 
 
