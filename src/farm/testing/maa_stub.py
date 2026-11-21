@@ -20,7 +20,7 @@ class FakeMaaController:
 
     def __init__(self, frames: Iterable[Frame] = ()) -> None:
         self._frames = iter(frames)
-        self.calls: list[tuple] = []
+        self.calls: list[tuple[object, ...]] = []
         self.connected = False
 
     def connect(self) -> None:

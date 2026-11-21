@@ -30,7 +30,7 @@ class Region(_Model):
     height: Size
 
     @model_validator(mode="after")
-    def _inside_screen(self):
+    def _inside_screen(self) -> "Region":
         if self.x + self.width > 1.0 + _EPS or self.y + self.height > 1.0 + _EPS:
             raise ValueError("region extends past the screen edge")
         return self

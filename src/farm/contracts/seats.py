@@ -52,7 +52,7 @@ class DeviceMatch(_Model):
     by_path: NonBlank | None = None
 
     @model_validator(mode="after")
-    def _has_an_identifier(self):
+    def _has_an_identifier(self) -> "DeviceMatch":
         if self.by_id is None and self.by_path is None:
             raise ValueError("a match needs by_id, by_path, or both")
         return self
@@ -92,7 +92,7 @@ class SeatTable(_Model):
     seats: Annotated[tuple[SeatSpec, ...], Field(min_length=1)]
 
     @model_validator(mode="after")
-    def _identifiers_are_unique(self):
+    def _identifiers_are_unique(self) -> "SeatTable":
         seat_ids = [seat.seat_id for seat in self.seats]
         if len(set(seat_ids)) != len(seat_ids):
             raise ValueError("duplicate seat id")
