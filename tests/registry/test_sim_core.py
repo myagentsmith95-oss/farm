@@ -95,6 +95,19 @@ def test_partial_attach_then_complete():
     assert [c.after for c in drain(registry, sim)] == [SeatStatus.READY]
 
 
+def test_restart_with_devices_already_present_reaches_ready_without_new_events():
+    # N1: a restarted host sees the already-plugged devices at iteration start.
+    seat = standard()
+    registry = SeatRegistry(SeatTable(seats=[seat]))
+    sim = SimDevice(seat, present=list(seat.devices))
+
+    assert [c.after for c in drain(registry, sim)] == [
+        SeatStatus.PARTIAL,
+        SeatStatus.READY,
+    ]
+    assert registry.state(seat.seat_id).status is SeatStatus.READY
+
+
 def test_seats_are_independent():
     first, second = standard(), adb_only()
     registry = SeatRegistry(SeatTable(seats=[first, second]))
