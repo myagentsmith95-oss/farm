@@ -27,6 +27,8 @@ class FakeCaptureSource:
         self._started = True
 
     def latest(self, max_age_ms: int) -> Frame:
+        if max_age_ms < 0:
+            raise ValueError(f"max_age_ms must not be negative, got {max_age_ms}")
         if self._closed or not self._started:
             raise CaptureError("source is not running")
         if self._latest is None:

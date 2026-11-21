@@ -19,7 +19,9 @@ class CaptureSource(Protocol):
 
     def latest(self, max_age_ms: int) -> Frame:
         """Newest frame. Raises CaptureError if not started or closed,
-        StaleFrame if there is no frame or it is older than max_age_ms."""
+        StaleFrame if there is no frame or it is older than max_age_ms, and
+        ValueError if max_age_ms is negative. Zero accepts a frame stamped at
+        the current clock."""
         ...
 
     def close(self) -> None:

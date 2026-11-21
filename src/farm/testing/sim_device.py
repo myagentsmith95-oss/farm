@@ -45,11 +45,16 @@ class SimDevice:
     def attach(self, roles: Iterable[DeviceRole] | None = None) -> tuple[DeviceEvent, ...]:
         """Attach every required device, or just the named subset."""
         selected = list(roles) if roles is not None else list(self.spec.devices)
-        events: list[DeviceEvent] = []
+        # Validate the whole batch first: a rejected attach must not leave a
+        # partial claim or an event on the feed (CR-7b).
         for role in selected:
-            match = self.spec.devices[role]  # KeyError for an unenrolled role
+            if role not in self.spec.devices:
+                raise KeyError(role)
             if role in self._attached:
                 raise ValueError(f"{role.value} is already attached")
+        events: list[DeviceEvent] = []
+        for role in selected:
+            match = self.spec.devices[role]
             event = self._make_event(DeviceEventKind.ATTACHED, role, match)
             self._attached[role] = event
             self._source.push(event)

@@ -61,6 +61,11 @@ tests/contracts/capture_source_suite.py tests/contracts/test_fake_capture_source
 tests/contracts/matching_suite.py tests/contracts/test_fake_matching.py
 tests/contracts/events_suite.py tests/contracts/lease_suite.py tests/contracts/test_fake_events_lease.py
 tests/contracts/event_log_suite.py tests/contracts/test_fake_event_log.py
+repo_audit.sh src/farm/testing/invariants.py
+docs/farm-code-review-v1.md docs/farm-code-review-v2.md docs/farm-code-review-v3.md docs/farm-code-review-v4.md
+adoption/.gitkeep firmware/esp32_seat/.gitkeep ops/systemd/.gitkeep probe/.gitkeep protocol/.gitkeep
+scenarios/.gitkeep services/maa_service/.gitkeep tests/hardware/.gitkeep tests/input/.gitkeep
+tests/integration/.gitkeep tests/properties/.gitkeep tests/soak/.gitkeep tests/unit/.gitkeep tools/.gitkeep
 "
 MISSING=0
 for f in $EXPECTED; do
