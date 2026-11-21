@@ -137,7 +137,7 @@ def test_spec_accepts_a_seat_with_both_input_modes():
             CARD: DeviceMatch(by_path="p1"),
         },
     )
-    assert spec.profile.input_modes == [InputMode.HID, InputMode.ADB]
+    assert spec.profile.input_modes == (InputMode.HID, InputMode.ADB)
 
 
 def test_spec_seat_id_is_the_profile_device_id():
@@ -222,6 +222,13 @@ def test_table_accepts_distinct_seats():
         seats=[hid_seat("seat-01", "usb-a", "p1"), hid_seat("seat-02", "usb-b", "p2")]
     )
     assert [s.seat_id for s in table.seats] == ["seat-01", "seat-02"]
+
+
+def test_table_seats_is_a_tuple_that_rejects_mutation():
+    table = SeatTable(seats=[hid_seat("seat-01", "usb-a", "p1")])
+    assert isinstance(table.seats, tuple)
+    with pytest.raises(AttributeError):
+        table.seats.append(hid_seat("seat-02", "usb-b", "p2"))
 
 
 def test_table_rejects_an_empty_seat_list():

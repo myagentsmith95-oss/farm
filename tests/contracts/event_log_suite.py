@@ -107,3 +107,9 @@ class EventLogContract:
         got = rig.log.since(0)
         got[0].data["n"] = 99
         assert rig.log.since(0)[0].data["n"] == 1
+
+    def test_caller_mutation_after_append_cannot_change_the_log(self, rig):
+        data = {"nested": {"x": 1}}
+        rig.log.append("action.performed", data=data)
+        data["nested"]["x"] = 99
+        assert rig.log.since(0)[0].data["nested"]["x"] == 1
