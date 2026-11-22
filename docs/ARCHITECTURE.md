@@ -1,11 +1,12 @@
 # Android Device Farm — Project Documentation
 
-**Version:** 1.1 · November 22, 2026
-**Baselines:** farm repo @ `517f207` (memo V1.20, 388 tests green) ·
+**Version:** 1.2 · November 22, 2026
+**Baselines:** farm repo @ `main` (memo V1.25, 456 tests green) ·
 experiments repo `stop-esp32-s3-to-reboot` @ `c29950e` (working hardware proof)
-**Status as of:** 22 November 2026 — fix tasks 1–12 are complete (PRs #14–#25,
-memo C25–C42). The hardware facts in §§3–8 remain the source of truth and were
-not changed by this status refresh; the live change log is in `decision-memo.md`.
+**Status as of:** 22 November 2026 — fix tasks 1–12 and the first W2 serial slice are
+complete (see the memo change log, C25–C49). The farm baseline is stated by memo version
+and test count because a git hash goes stale on every merge; the experiments hash anchors
+the hardware facts in §§3–8, which were **not** changed by this status refresh.
 **Status labels used everywhere:** [proven] = runs on real hardware in experiments ·
 [built] = implemented and CI-tested in the farm repo · [designed] = specified, not built ·
 [unverified] = needs a hardware or measurement check.
@@ -177,8 +178,11 @@ control (page 0x0C).
 **Removed by decision (Nov 22): POWER, VOLUME_UP/DOWN, MUTE, media keys.** No power or
 volume control is needed. Screen stays on via the phone's stay-awake setting.
 
-**APP_SWITCH (recents):** no HID usage exists. Tier-2 touch macro, or ADB keycode 187
-where ADB exists. Never a HID `KEY`.
+**APP_SWITCH (recents):** a HID path does exist — usage 0x1a2 maps to `KEY_APPSELECT`
+(580) and then to Android keycode 187 on common keymaps — but the mapping is
+kernel/keymap-version dependent and is **not relied on**. The farm uses a Tier-2 touch
+macro, or ADB keycode 187 where ADB exists. Never a HID `KEY` in the farm's own firmware
+extension.
 
 ### 4.4 Canonical KeyCode (farm contracts)
 
@@ -188,7 +192,7 @@ where ADB exists. Never a HID `KEY`.
 | BACK | consumer 0x224 | 4 | True after composite firmware; else touch macro |
 | ENTER | keyboard 0x28 | 66 | True after composite firmware |
 | DEL | keyboard 0x2A | 67 | True after composite firmware |
-| APP_SWITCH | — | 187 | False → touch macro or ADB |
+| APP_SWITCH | 0x1a2 exists but version-dependent, not relied on | 187 | False → touch macro or ADB |
 
 Until composite firmware lands, the HID backend supports **Tap and Swipe only**;
 `Key`/`Text` raise `UnsupportedAction`. The InputRouter falls back to ADB (Wi-Fi) on
@@ -346,7 +350,7 @@ seat-01: modes [hid]
 
 ### 9.4 Testing & process [built]
 
-388 tests: property tests (hypothesis) pin model invariants; reusable contract suites per
+456 tests: property tests (hypothesis) pin model invariants; reusable contract suites per
 seam with anti-vacuity guards; SimDevice drives the production registry through attach/
 detach/coldplug in CI; dual-client test proves the farm seams and a Maa-shaped controller
 speak the same verbs (shape only — see §12). CI: ruff, mypy, lint-imports, pytest.
@@ -374,12 +378,13 @@ green fix → memo row + audit update.
 
 | Component | State |
 |---|---|
-| Contracts, registry, fakes, suites, gates | **[built]** 388 tests green @ 517f207 (memo V1.20) |
+| Contracts, registry, fakes, suites, gates | **[built]** 456 tests green @ main (memo V1.25) |
 | Digitizer firmware (TAP/SWIPE, 2-finger descriptor) | **[proven]** one phone, screenshots saved |
 | HDMI capture + active-area + RES alignment | **[proven]** one phone |
 | No-reset serial discipline | **[proven]** |
-| Composite keys/text, session hardening, vectors | [designed] |
-| pyudev / esp32_serial / uvc_cv2 adapters in farm | [designed] — port from experiments |
+| Composite keys/text, session hardening | [designed] |
+| Serial v1 golden vectors + `esp32_serial` adapter | **[built]** protocol spec, 26 vectors, hardware-free tests |
+| pyudev / uvc_cv2 adapters in farm | [designed] — port from experiments |
 | Runner, vision, console, calibration core | [designed] |
 | No-ADB phone acceptance, rotation, 50-seat scale, latency budget | [unverified] |
 
@@ -419,7 +424,7 @@ deferred to W9 as a performance item — see the memo's open items.
 | 1 | "ESP32 emulates a pointer" (§2.2, C10) | USB HID **digitizer**, absolute touch | working descriptor 0x0D/0x04 |
 | 2 | L1 tap-grid + L2 active-area **calibration** | No tap grid. "Active area" = **HDMI pillarbox crop detection**; alignment = crop + `RES` sync | experiments README + code |
 | 3 | D3 `esp32-android-agent` as firmware reference | Wrong HID layer (keyboard+mouse, per-phone pointer calibration). Real base = `stop-esp32-s3-to-reboot` touch-fw-2. Keep D3 only for session ideas (heartbeat/cancel/no-replay) | both firmwares read |
-| 4 | Flat KeyCode list incl. POWER/VOLUME | Pure digitizer sends no keys. Tiered vocabulary; **power/volume removed by decision**; APP_SWITCH = touch macro/ADB | §4 |
+| 4 | Flat KeyCode list incl. POWER/VOLUME | Pure digitizer sends no keys. Tiered vocabulary; **power/volume removed by decision**; APP_SWITCH = touch macro/ADB (HID 0x1a2 exists but is version-dependent, not relied on) | §4 |
 | 5 | "Serial protocol over CDC" (ambiguous) | **UART0 via USB-serial bridge**, 115200; native USB reserved for the phone; CDC-on-boot disabled | firmware header + by-id log |
 | 6 | ADB as fallback on dual-mode seats | Phone USB is occupied by the hub → **Wi-Fi ADB** required | topology + reference docs |
 | 7 | Dual-client test ⇒ Maa interchangeable | Verb **shape** only; real Maa API uses int keycodes/pixels; W6 adapter owns mapping | stub vs Maa API |
@@ -434,7 +439,7 @@ deferred to W9 as a performance item — see the memo's open items.
 - D-4: **No power and no volume control.** POWER/VOLUME/MUTE/media removed from scope.
 - D-5: Firmware base = `stop-esp32-s3-to-reboot` (touch-fw-2), extended in place.
 - D-6: Keep the proven wire protocol and RES = capture-crop approach for W2.
-- D-7: KeyCode core = HOME, BACK, ENTER, DEL (composite firmware); APP_SWITCH via macro/ADB.
+- D-7: KeyCode core = HOME, BACK, ENTER, DEL (composite firmware); APP_SWITCH via macro/ADB (HID 0x1a2 exists but is version-dependent, not relied on).
 
 ## 14. Open items & risks
 
