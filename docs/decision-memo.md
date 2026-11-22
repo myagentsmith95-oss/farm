@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.21
-**Supersedes:** ADF-DEC-V1.20 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.22
+**Supersedes:** ADF-DEC-V1.21 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 22, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -56,6 +56,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C41 | Task 10: README documents purpose, layout, setup, the five gates and the memo links; reviews v1/v3/v4 are committed as markdown summaries (PDFs stay local per `.gitignore`); `HANDOFF.md` is gone; `repo_audit.sh` EXPECTED covers every tracked path including the 14 `.gitkeep` markers, so drift is zero. No LICENSE file is committed by owner decision — the gap is recorded in O9. | ch. 4.3, F6 | settled (LICENSE gap recorded) |
 | C42 | CR-8/CR-7b (Task 11): `CaptureSource.latest(max_age_ms)` rejects negative values with `ValueError`; `latest(0)` still accepts a frame stamped at the current clock. `SimDevice.attach()` validates the entire role batch before attaching any, so a rejected batch leaves no queued event and no partial state. | ch. 4.1, ch. 4.2 | settled |
 | C43 | `SimDevice.attach()` also rejects a role repeated within one batch, so `attach([HID, HID])` raises before queuing anything. `FakeDeviceEventSource` consumes its preload list on the first `events()` call, so coldplug is never re-delivered; the finite fake may still be iterated again to drain later live events (the incremental `drain()` pattern). The contract and reusable suite document both rules. | ch. 4.1, C29 | settled |
+| C44 | CR-10 definition recovered and O17 closed as a recovery item: `SeatRegistry.apply()` constructs two `SeatState` models per seat per event to compare status and modes. Reclassified as a W9 performance item — derive the comparison from claim sets and build `SeatState` only on demand. Deferred deliberately. | ch. 4.2, O17 | settled (definition); work deferred to W9 |
 
 **Open items carried forward**
 
@@ -77,7 +78,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | O14 | N9: state that fencing tokens are monotonic per supervisor lifetime and equality-based validity is restart-safe. | open, W7 |
 | O15 | N10: registry concurrency model (confine to supervisor thread + lock when the udev listener lands). | open, W2/W8 |
 | O16 | CR-7: give `SimDevice` a serial-less capture-card mode for the coldplug/restart scenario. | open, W2 |
-| O17 | CR-10: referenced by `FIX_TASKS.md` v2 but not defined in the available reviews; definition must be recovered from the audit workspace before it can be closed. | open, owner: audit |
+| O17 | CR-10 (definition recovered 22 November 2026): `SeatRegistry.apply()` builds two full `SeatState` pydantic snapshots per seat per event just to compare status and modes — O(seats) model constructions. Measured 100 snapshots per event at 50 seats, about 0.82 ms/event locally. Fix: derive status/modes directly from the claim sets and construct `SeatState` only on demand. Reclassified as a **W9 performance item**; no action now. | open, W9 |
 
 ---
 

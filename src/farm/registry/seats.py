@@ -85,6 +85,10 @@ class SeatRegistry:
         identity = _Identity.from_event(event)
         for seat in self._table.seats:
             occupancy = self._occupancy[seat.seat_id]
+            # CR-10 (O17): two full SeatState models are built here per seat
+            # just to compare status and modes. Measured ~0.82 ms/event at
+            # 50 seats — deferred to W9; derive the comparison from claim
+            # sets and construct SeatState only on demand.
             before = self._snapshot(seat, occupancy)
             if event.kind is DeviceEventKind.ATTACHED:
                 matched = [
