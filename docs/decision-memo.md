@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.28
-**Supersedes:** ADF-DEC-V1.27 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.29
+**Supersedes:** ADF-DEC-V1.28 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 22, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -65,6 +65,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C50 | Host preparation (Stage 0): runtime deps `pyudev`, `opencv-python-headless`, `numpy` and `PyYAML` declared alongside pyserial; `farm.adapters.udev` discovers ESP32 boards by by-id and capture cards by by-path using `VIDIOC_QUERYCAP`, skipping webcams and synthesizing C32 ids; `farm.adapters.uvc_cv2` provides MJPG capture, no-signal detection and active-area cropping behind the CaptureSource seam; `tools/probe_esp32.py` and `tools/probe_capture.py` are host diagnostics. No hardware I/O was performed. | ch. 4A, C7, C32 | settled (software); hardware verification pending |
 | C51 | Stage 1 hardware verification and HDMI lock wait. Both ESP32 boards answered PING with READY and **zero** BOOT banners through the no-reset open; board `5C63001367` accepted a TAP, board `5C63002523` reported `usb send failed` (no phone attached). On this host the card shows color bars for ~4 s, then black ~2 s, then a stable crop — so `UvcCaptureSource.refresh()` now retries for up to 20 s (0.5 s interval) before raising `StaleFrame`. Verified live crop `(746, 10, 1202, 1061)` → 457×1052 at `/dev/video0`. | ch. 4A, C50, arch §7 | settled |
 | C52 | Topology reliability: `find_active_area()` now uses the fraction of pixels above background+25 per column/row instead of mean luma, so dim screens no longer shift the crop; `stable_area()` majority-votes jittery samples. `tools/diagnose_topology.py` reports every board (PING/READY, BOOT count) and card (NO_SIGNAL / BLACK / ACTIVE with crop and stability) with one exit code. `topology_snapshot()`/`diff_snapshots()` record stable identities so a replug or port move is reported as an added/removed id — readiness for topology changes, though no live pyudev monitor exists yet. | ch. 4A, C50, arch §7/§9 | settled |
+| C53 | Hardware runbook and recovery: `docs/HARDWARE_DIAGNOSTICS.md` keeps the diagnostic commands, the dual-HDMI ffplay command and the symptom→cause→fix table from the bring-up (colour bars, black screen, busy V4L node, hung board, by-path churn, ttyACM renumbering). `diagnose_topology.py` gains `--recover`: a deliberate DTR/RTS reset that waits for `BOOT`, re-PINGs and is explicitly an exception to no-reset-on-open. A hung board (`5C63002523`) was recovered this way; a 30 s soak afterwards gave 55/55 READY on both boards. | ch. 4A, ch. 8, C52 | settled |
 
 **Open items carried forward**
 

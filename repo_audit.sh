@@ -36,7 +36,8 @@ echo
 echo "== 2. Expected files (present and tracked)"
 EXPECTED="
 pyproject.toml .importlinter .gitignore README.md .github/workflows/ci.yml
-docs/decision-memo.md docs/ARCHITECTURE.md protocol/serial_v1.md protocol/serial_vectors.json
+docs/decision-memo.md docs/ARCHITECTURE.md docs/HARDWARE_DIAGNOSTICS.md
+protocol/serial_v1.md protocol/serial_vectors.json
 src/farm/__init__.py src/farm/app.py
 src/farm/contracts/__init__.py src/farm/contracts/models.py src/farm/contracts/actions.py
 src/farm/contracts/frame.py src/farm/contracts/errors.py src/farm/contracts/input.py
@@ -54,6 +55,7 @@ src/farm/vision/__init__.py src/farm/console/__init__.py src/farm/console/views/
 tests/__init__.py tests/contracts/__init__.py tests/adapters/__init__.py
 tests/adapters/test_esp32_serial.py
 tests/adapters/test_udev_discovery.py tests/adapters/test_uvc_cv2.py
+tests/tools/__init__.py tests/tools/test_diagnose_topology.py
 tests/test_contracts_purity.py tests/d6_day5_dual_client_test.py tests/test_no_empty_placeholders.py
 tests/test_contract_suite_imports.py
 tests/properties/test_device_profile.py tests/properties/test_actions.py tests/properties/test_frame.py
@@ -70,7 +72,7 @@ repo_audit.sh src/farm/testing/invariants.py
 docs/farm-code-review-v1.md docs/farm-code-review-v2.md docs/farm-code-review-v3.md docs/farm-code-review-v4.md
 adoption/.gitkeep firmware/esp32_seat/.gitkeep ops/systemd/.gitkeep probe/.gitkeep protocol/.gitkeep
 scenarios/.gitkeep services/maa_service/.gitkeep tests/hardware/.gitkeep tests/input/.gitkeep
-tests/integration/.gitkeep tests/properties/.gitkeep tests/soak/.gitkeep tests/unit/.gitkeep tools/.gitkeep tools/probe_esp32.py tools/probe_capture.py tools/diagnose_topology.py
+tests/integration/.gitkeep tests/properties/.gitkeep tests/soak/.gitkeep tests/unit/.gitkeep tools/__init__.py tools/.gitkeep tools/probe_esp32.py tools/probe_capture.py tools/diagnose_topology.py
 "
 MISSING=0
 for f in $EXPECTED; do
