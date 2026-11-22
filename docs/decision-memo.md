@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.31
-**Supersedes:** ADF-DEC-V1.30 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.32
+**Supersedes:** ADF-DEC-V1.31 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 22, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -68,6 +68,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C53 | Hardware runbook and recovery: `docs/HARDWARE_DIAGNOSTICS.md` keeps the diagnostic commands, the dual-HDMI ffplay command and the symptom→cause→fix table from the bring-up (colour bars, black screen, busy V4L node, hung board, by-path churn, ttyACM renumbering). `diagnose_topology.py` gains `--recover`: a deliberate DTR/RTS reset that waits for `BOOT`, re-PINGs and is explicitly an exception to no-reset-on-open. A hung board (`5C63002523`) was recovered this way; a 30 s soak afterwards gave 55/55 READY on both boards. | ch. 4A, ch. 8, C52 | settled |
 | C54 | Diagnostic enforcement: a baseline snapshot now fails the run if a previously known board or card disappears (the baseline is not overwritten while missing, so the failure stays visible). Recovery re-sends `RES` when `--resolution W H` is given — required because BOOT resets the firmware's coordinate space. Opt-in `--check-hid` sends one centre TAP per READY board; `DONE` proves the HID gadget reaches a phone, `ERR usb send failed` proves it does not. Verified live: both boards DONE, both cards ACTIVE, RESULT OK; a deliberately stale baseline correctly reported MISSING and RESULT NOT READY. | ch. 4A, C52/C53 | settled |
 | C55 | `--check-hid` now performs a 500 ms swipe up followed by a 500 ms swipe down per board instead of a single tap, so the check exercises the digitizer's movement path and can wake a sleeping screen. Live run: both boards `HID attach: DONE`, both cards ACTIVE, `RESULT: OK` — the second seat returned from BLACK after the swipe pair. | ch. 4A, C54 | settled |
+| C56 | Screenshot evidence: `tools/capture_evidence.py` captures before / after-swipe-up / after-swipe-down frames from **every** attached capture card, keyed by hardware identity — board folders use the ESP32 serial, card folders use vendor:product + by-path. Timestamped runs under gitignored `var/evidence/`, with `README.txt` and `manifest.json` keeping full identifiers and `--keep N` pruning. The frame writer depends only on the `Frame` contract so a future ADB screencap source reuses it; `diagnose_topology.py --evidence` invokes it. | ch. 4A, ch. 8, C9 | settled (UVC path); ADB reuse designed |
 
 **Open items carried forward**
 

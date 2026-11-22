@@ -116,7 +116,7 @@ def run(base: Path, keep: int = 5, resolution: tuple[int, int] = (494, 1019)) ->
 
                 def grab() -> Frame:
                     source.refresh()
-                    return source.latest(0)
+                    return source.latest(1000)
 
                 folder = safe_name(
                     "card", card.vendor_id, card.product_id, card.by_path
@@ -150,6 +150,10 @@ def run(base: Path, keep: int = 5, resolution: tuple[int, int] = (494, 1019)) ->
 
 
 def main() -> int:
+    import sys
+
+    # Running as a script puts tools/ on sys.path; tests run from the repo root.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--evidence", default="var/evidence", help="evidence root")
     parser.add_argument("--keep", type=int, default=5)

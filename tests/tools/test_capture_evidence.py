@@ -1,9 +1,7 @@
 """Evidence layout: hardware-derived names, all cards, bounded retention."""
 import json
-from pathlib import Path
 
 from farm.contracts.frame import Frame, FrameSource
-
 from tools.capture_evidence import (
     capture_frame,
     frame_filename,
