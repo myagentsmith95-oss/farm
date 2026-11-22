@@ -32,8 +32,8 @@ ffmpeg -hide_banner -loglevel error -f v4l2 -input_format mjpeg -video_size 1920
 cd /home/agent-smith/Documents/farm && .venv/bin/python tools/probe_esp32.py
 cd /home/agent-smith/Documents/farm && .venv/bin/python tools/probe_capture.py
 
-# Three screenshots per paired device: current → swipe → swipe.
-cd /home/agent-smith/Documents/farm && .venv/bin/python tools/capture_evidence.py --evidence var/evidence --resolution 494 1019
+# Three screenshots per paired device: shade closed → open → closed.
+cd /home/agent-smith/Documents/farm && .venv/bin/python tools/capture_evidence.py --evidence evidence --resolution 494 1019 --settle 1.0 --between 0.8 --drain 5
 # Override the board↔card pairing if the wiring changed:
 cd /home/agent-smith/Documents/farm && .venv/bin/python tools/capture_evidence.py --map 5C63001367=<card-by-path> --map 5C63002523=<card-by-path>
 # Or capture evidence from inside the full diagnostic:
@@ -83,12 +83,12 @@ must re-sync the coordinate space before injecting touch.
 
 ## Screenshot evidence
 
-`tools/capture_evidence.py` writes a timestamped folder under `var/evidence/`
-(already gitignored). Each **device** — one ESP32 board paired with one capture
+`tools/capture_evidence.py` writes a timestamped folder under `evidence/`
+(gitignored). Each **device** — one ESP32 board paired with one capture
 card — gets one folder containing the three states in sequence:
 
 ```
-var/evidence/<timestamp>/
+evidence/<timestamp>/
   README.txt, manifest.json
   device-<board-serial>--card-<vendor>-<product>-<usb-port>/
     01-current.jpg
@@ -128,6 +128,22 @@ wiring changes; `CARD_KEY` can be a full by-path/by-id or a unique fragment.
 (default 5) prunes old runs.
 
 ### Idea behind the code
+
+### Why the three frames were identical, and the fix
+
+Two causes were found, both in the capture path, not in HID:
+
+1. OpenCV buffers frames. `read()` could return an image captured **before**
+   the swipe, so all three screenshots were byte-identical. `refresh()` now
+   discards `drain - 1` stale frames before storing the newest one; `--drain`
+   defaults to 3 and 5 works well on this host.
+2. The notification shade may already be open from a previous run. The sequence
+   now begins with a close (up) swipe, so `01-current.jpg` always has the shade
+   closed, then opens it for `02-after-swipe-1.jpg`, then closes it again for
+   `03-after-swipe-2.jpg`.
+
+Verified live: the open-shade frame differs from the closed-shade frames by
+about 67 (board `5C63001367`) and 61 (board `5C63002523`) mean grey levels.
 
 The frame writer depends only on the `Frame` contract (`Frame.data`) and the
 swipes use the canonical `Swipe` model. When the ADB path is built later, an ADB
