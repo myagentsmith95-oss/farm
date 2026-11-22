@@ -47,11 +47,13 @@ src/farm/testing/capture.py src/farm/testing/matching.py src/farm/testing/events
 src/farm/testing/lease.py src/farm/testing/event_log.py src/farm/testing/maa_stub.py src/farm/testing/sim_device.py
 src/farm/testing/fake_serial.py
 src/farm/adapters/__init__.py src/farm/adapters/esp32_serial.py
+src/farm/adapters/udev.py src/farm/adapters/uvc_cv2.py
 src/farm/registry/__init__.py src/farm/registry/profiles.py src/farm/registry/seats.py src/farm/calibration/__init__.py
 src/farm/capture/__init__.py src/farm/control/__init__.py src/farm/runner/__init__.py
 src/farm/vision/__init__.py src/farm/console/__init__.py src/farm/console/views/__init__.py
 tests/__init__.py tests/contracts/__init__.py tests/adapters/__init__.py
 tests/adapters/test_esp32_serial.py
+tests/adapters/test_udev_discovery.py tests/adapters/test_uvc_cv2.py
 tests/test_contracts_purity.py tests/d6_day5_dual_client_test.py tests/test_no_empty_placeholders.py
 tests/test_contract_suite_imports.py
 tests/properties/test_device_profile.py tests/properties/test_actions.py tests/properties/test_frame.py
@@ -68,7 +70,7 @@ repo_audit.sh src/farm/testing/invariants.py
 docs/farm-code-review-v1.md docs/farm-code-review-v2.md docs/farm-code-review-v3.md docs/farm-code-review-v4.md
 adoption/.gitkeep firmware/esp32_seat/.gitkeep ops/systemd/.gitkeep probe/.gitkeep protocol/.gitkeep
 scenarios/.gitkeep services/maa_service/.gitkeep tests/hardware/.gitkeep tests/input/.gitkeep
-tests/integration/.gitkeep tests/properties/.gitkeep tests/soak/.gitkeep tests/unit/.gitkeep tools/.gitkeep
+tests/integration/.gitkeep tests/properties/.gitkeep tests/soak/.gitkeep tests/unit/.gitkeep tools/.gitkeep tools/probe_esp32.py tools/probe_capture.py
 "
 MISSING=0
 for f in $EXPECTED; do

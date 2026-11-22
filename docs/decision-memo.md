@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.25
-**Supersedes:** ADF-DEC-V1.24 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.26
+**Supersedes:** ADF-DEC-V1.25 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 22, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -62,6 +62,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C47 | Serial hardening B/K/D/E: the per-command deadline includes gesture duration (a long swipe can take up to 10 s host-side); swipe ms is bounded 16..10000 in the host; `handshake()` re-PINGs every 0.5 s for cold boots; `sync_resolution()` updates the adapter's coordinate size; timeouts and `BOOT` drain the port and set `needs_rehandshake`, and `perform()` refuses work until `recover()` re-handshakes and re-sends `RES`. | ch. 4A, C46, arch §5 | settled |
 | C48 | Serial hardening C/F/G: inbound bytes are buffered until LF so partial reads cannot split a reply; a bare `ERR` is an error; `Esp32SerialBackend` runs the reusable `InputBackendContract` suite (C17) in addition to the vector tests. The single-caller assumption and the normalized 1.0→crop-size convention are documented. | ch. 4.1, C17, C46 | settled |
 | C49 | Final review corrections: if a `BOOT` banner is seen during `handshake()`, the host re-sends `RES` before clearing `needs_rehandshake` — a restart resets the firmware's coordinate space, so skipping this silently misplaces taps. The APP_SWITCH rationale is corrected: HID usage 0x1a2 → `KEY_APPSELECT` 580 → keycode 187 exists but is kernel/keymap-version dependent and not relied on; disposition stays touch macro / ADB 187. `ARCHITECTURE.md` status refreshed to 456 tests / memo V1.25 and the serial adapter marked [built]. | ch. 4A, C35, C47, arch §11 | settled |
+| C50 | Host preparation (Stage 0): runtime deps `pyudev`, `opencv-python-headless`, `numpy` and `PyYAML` declared alongside pyserial; `farm.adapters.udev` discovers ESP32 boards by by-id and capture cards by by-path using `VIDIOC_QUERYCAP`, skipping webcams and synthesizing C32 ids; `farm.adapters.uvc_cv2` provides MJPG capture, no-signal detection and active-area cropping behind the CaptureSource seam; `tools/probe_esp32.py` and `tools/probe_capture.py` are host diagnostics. No hardware I/O was performed. | ch. 4A, C7, C32 | settled (software); hardware verification pending |
 
 **Open items carried forward**
 
