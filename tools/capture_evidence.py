@@ -159,27 +159,28 @@ def capture_sequence(
     between: float = 0.5,
     sleep: Callable[[float], None] = time.sleep,
 ) -> None:
-    """Close → open → close the Android notification shade, one source per device.
+    """Swipe up → down → up on one device, with a screenshot after each.
 
-    A swipe down from the top edge opens the notification shade; a swipe up
-    closes it. The first action is a close so the "current" frame always has
-    the shade closed — otherwise three identical open-shade frames are saved.
-    Waits are explicit; they do not depend on camera re-initialisation.
+    On this launcher the mid-screen vertical pair toggles the app drawer:
+    home screen → app drawer → home screen. It is NOT the notification shade
+    (that needs a swipe from the top edge, y≈30→900). The first swipe puts the
+    sequence in a known state; waits are explicit and do not depend on camera
+    re-initialisation.
     """
     x = int(0.5 * resolution[0] + 0.5)
     low = int(0.75 * resolution[1] + 0.5)
     high = int(0.25 * resolution[1] + 0.5)
-    # Close any shade left open from a previous run.
+    # First mid-screen swipe: establish a known starting screen.
     swipe(handle, x, low, high, 500)
     sleep(settle)
     capture_frame(grab, folder / frame_filename("current"))
     sleep(between)
-    # Swipe down from the top edge: open the notification shade.
+    # Opposite swipe: toggles the app drawer on this launcher.
     swipe(handle, x, high, low, 500)
     sleep(settle)
     capture_frame(grab, folder / frame_filename("swipe1"))
     sleep(between)
-    # Swipe up: close the shade again.
+    # Third swipe: return to the starting screen.
     swipe(handle, x, low, high, 500)
     sleep(settle)
     capture_frame(grab, folder / frame_filename("swipe2"))

@@ -114,7 +114,7 @@ def test_capture_sequence_waits_between_every_step(tmp_path):
         between=0.4,
         sleep=sleeps.append,
     )
-    # close the notification shade first, then open it, then close it again
+    # mid-screen swipe up, down, up: home → app drawer → home
     assert sleeps == [0.3, 0.4, 0.3, 0.4, 0.3]
     assert swipes == [(764, 255), (255, 764), (764, 255)]
     assert sorted(p.name for p in tmp_path.iterdir()) == [

@@ -143,12 +143,13 @@ Two causes were found, both in the capture path, not in HID:
    the swipe, so all three screenshots were byte-identical. `refresh()` now
    discards `drain - 1` stale frames before storing the newest one; `--drain`
    defaults to 3 and 5 works well on this host.
-2. The notification shade may already be open from a previous run. The sequence
-   now begins with a close (up) swipe, so `01-current.jpg` always has the shade
-   closed, then opens it for `02-after-swipe-1.jpg`, then closes it again for
-   `03-after-swipe-2.jpg`.
+2. The starting screen may not be what the previous run left. The sequence now
+   begins with a mid-screen swipe, then reverses it, then repeats it. On this
+   launcher that pair toggles the **app drawer**, so the frames are home screen →
+   app drawer → home screen. This is *not* the notification shade — that needs a
+   swipe from the top edge (y≈30→900) and was a separate live test.
 
-Verified live: the open-shade frame differs from the closed-shade frames by
+Verified live: the app-drawer frame differs from the home-screen frames by
 about 67 (board `5C63001367`) and 61 (board `5C63002523`) mean grey levels.
 
 ### Key ideas, findings and traps
@@ -159,14 +160,15 @@ measurements that looked like answers but were not.
 | Trap | What it looked like | What was actually true |
 |---|---|---|
 | `DONE` from firmware means the phone acted | Every swipe returned `DONE`, so the evidence should show a change | `DONE` only means the ESP32 sent a HID report. The phone's reaction is a separate fact and must be observed on the screen |
-| Identical screenshots mean the gesture failed | All three files byte-identical, so we tried new gestures, longer waits and `RES` sync | HID was working (the shade was visibly pulled down). OpenCV's `read()` was returning a frame buffered *before* the swipe |
+| Identical screenshots mean the gesture failed | All three files byte-identical, so we tried new gestures, longer waits and `RES` sync | HID was working (a top-edge swipe visibly pulled down the notification shade; the evidence pair toggles the app drawer). OpenCV's `read()` was returning a frame buffered *before* the swipe |
 | Waiting longer fixes stale frames | 1–2 s waits made no difference | The buffer still held old frames. The fix was to *discard* `drain - 1` frames, not to wait more |
 | A fresh capture per screenshot is cleaner | Each state opened a new `UvcCaptureSource`; timing was hidden inside `start()` (2 s settle + 15 warm-up frames) | Re-opening made timing uncontrolled. One source stays open per device; explicit `settle`/`between` waits govern the sequence |
-| The first frame is a neutral baseline | `01-current.jpg` often showed the notification shade already open from a previous run | The sequence must establish a known state: close the shade first, then open, then close again |
+| The first frame is a neutral baseline | `01-current.jpg` could show whatever the previous run left on screen | The sequence must establish a known state: first swipe, reverse, repeat — and the writer must not *name* the state without looking at the image |
 | Frame diff can pair boards with cards | A 50.15 diff on one card suggested a pairing; 0.00 on both suggested none | A swipe can legitimately produce no visible change. Pairing is explicit from `hil-rig/devices/rig-*.yaml`, not inferred from pixels |
 | `/dev/videoN` identifies a card | The experiments hardcoded `/dev/video2` | On this host `/dev/video2` is the webcam; the card was `/dev/video0`. Nodes swap after replug. Use by-path/by-id identities |
 | Two capture cards cannot run together | One card failed to open while another tool held the device | Concurrent capture works; the failure was a busy V4L2 node (ffplay). One opener per node, plus external hub power |
 | A visual glance is enough to compare frames | Frames "looked the same" | Compare SHA-256 hashes and mean grey difference. Identical hashes prove the capture is stale, not that the UI is static |
+| A large diff identifies the UI element that changed | A 67-level diff was labelled "notification shade" | The images showed home screen → app drawer → home screen. A diff proves *something* changed, not *what*. Always open the frame before naming the state |
 
 Key ideas that came out of it:
 
