@@ -15,7 +15,7 @@ cd /home/agent-smith/Documents/farm && .venv/bin/python tools/diagnose_topology.
 # Deliberately reset any board that does not answer PING, then re-PING and re-send RES.
 cd /home/agent-smith/Documents/farm && .venv/bin/python tools/diagnose_topology.py --recover --resolution 494 1019
 
-# Prove both boards' HID gadgets actually reach a phone (one centre TAP each).
+# Prove both boards' HID gadgets reach a phone: swipe up then swipe down on each.
 cd /home/agent-smith/Documents/farm && .venv/bin/python tools/diagnose_topology.py --check-hid --resolution 494 1019
 
 # Live HDMI preview, one card at a time.
@@ -37,8 +37,10 @@ cd /home/agent-smith/Documents/farm && .venv/bin/python tools/probe_capture.py
 every discovered card has a stable active-area crop. With `--snapshot`, a previously
 known device that disappears makes it exit 1; the baseline is not overwritten while
 something is missing, so the failure stays visible until acknowledged. `--check-hid`
-is opt-in because it injects one harmless centre TAP per board; `DONE` means the HID
-gadget reaches a phone, `ERR usb send failed` means it does not. `--recover` resets a
+is opt-in because it injects a 500 ms swipe up then a 500 ms swipe down per board;
+`DONE` for both means the HID gadget reaches a phone, `ERR usb send failed` means it
+does not. The vertical pair also exercises movement and can wake a sleeping screen —
+it brought the second seat back to ACTIVE during bring-up. `--recover` resets a
 hung board and re-sends `RES` when `--resolution` is supplied — without it the caller
 must re-sync the coordinate space before injecting touch.
 
