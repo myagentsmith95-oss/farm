@@ -16,6 +16,8 @@ from farm.contracts.models import InputMode
 
 _BAUD = 115200
 _MIN_SWIPE_MS = 16
+_MAX_SWIPE_MS = 10000
+_PING_INTERVAL_S = 0.5
 _POLL_S = 0.002
 
 
@@ -61,7 +63,7 @@ def decode_reply(line: str) -> str | None:
         return None
     if line in ("READY", "OK", "DONE"):
         return line
-    if line.startswith("ERR "):
+    if line == "ERR" or line.startswith("ERR "):
         return "ERR"
     if line.startswith("BOOT "):
         return "BOOT"
@@ -71,12 +73,21 @@ def decode_reply(line: str) -> str | None:
 
 
 def _to_pixels(normalized: float, size: int) -> int:
-    """Normalized 0..1 to crop pixels 0..size (half-up, clamped)."""
+    """Normalized 0..1 to crop pixels 0..size (half-up, clamped).
+
+    Normalized 1.0 maps to `size`, one past the last pixel index; the
+    firmware clamps it into the digitizer range, so this is harmless.
+    """
     return max(0, min(size, int(normalized * size + 0.5)))
 
 
 class Esp32SerialBackend:
-    """InputBackend for one seat. One port open per session; strict lockstep."""
+    """InputBackend for one seat. One port open per session; strict lockstep.
+
+    Single-caller assumption: no lock is taken, so the supervisor must not
+    drive one backend from multiple threads. After a timeout or a BOOT banner
+    the backend refuses work until `recover()` re-handshakes and re-sends RES.
+    """
 
     mode = InputMode.HID
 
@@ -93,15 +104,20 @@ class Esp32SerialBackend:
         self.timeout_s = timeout_s
         self.closed = False
         self.needs_rehandshake = False
+        self._line_buffer = b""
 
     def supports(self, action: object) -> bool:
         return not self.closed and isinstance(action, (Tap, Swipe))
 
     def perform(self, action: object) -> None:
+        """Inject an action and block until the firmware answers DONE."""
         if self.closed:
             raise InputError("backend is closed")
+        if self.needs_rehandshake:
+            raise InputError("board rehandshake required before another action")
         if not self.supports(action):
             raise UnsupportedAction("HID digitizer supports Tap and Swipe only")
+        extra_s = 0.0
         if isinstance(action, Tap):
             command: dict[str, Any] = {
                 "name": "tap",
@@ -109,8 +125,13 @@ class Esp32SerialBackend:
                 "y": _to_pixels(action.y, self.height),
             }
         elif isinstance(action, Swipe):
-            if action.duration_ms < _MIN_SWIPE_MS:
-                raise ValueError(f"swipe duration must be >= {_MIN_SWIPE_MS} ms")
+            if not _MIN_SWIPE_MS <= action.duration_ms <= _MAX_SWIPE_MS:
+                raise ValueError(
+                    f"swipe duration must be {_MIN_SWIPE_MS}..{_MAX_SWIPE_MS} ms"
+                )
+            # The board blocks for the whole gesture; the host deadline must
+            # cover it or a late DONE would be consumed by the next command.
+            extra_s = action.duration_ms / 1000.0
             command = {
                 "name": "swipe",
                 "x1": _to_pixels(action.x1, self.width),
@@ -121,35 +142,63 @@ class Esp32SerialBackend:
             }
         else:
             raise UnsupportedAction("HID digitizer supports Tap and Swipe only")
-        self._send_and_expect(encode_command(command), "DONE")
+        self._send_and_expect(encode_command(command), "DONE", extra_s=extra_s)
 
     def handshake(self) -> None:
-        """Ping until READY; also covers a board that is still booting.
+        """Re-PING every 0.5 s until READY or the deadline.
 
         Stale input is drained once when the session opens, not here — a
         READY already queued must not be thrown away.
         """
         deadline = time.monotonic() + self.timeout_s
+        next_ping = 0.0
         while time.monotonic() < deadline:
-            self._serial.write(b"PING\n")
-            if self._read_until("READY", deadline):
-                self.needs_rehandshake = False
-                return
+            now = time.monotonic()
+            if now >= next_ping:
+                self._serial.write(b"PING\n")
+                next_ping = now + _PING_INTERVAL_S
+            text = self._next_line()
+            if text:
+                kind = decode_reply(text)
+                if kind == "READY":
+                    self.needs_rehandshake = False
+                    return
+                if kind == "BOOT":
+                    self.needs_rehandshake = True
+            else:
+                time.sleep(_POLL_S)
         raise InputError("timeout waiting for READY")
 
     def sync_resolution(self, width: int | None = None, height: int | None = None) -> None:
         w = self.width if width is None else width
         h = self.height if height is None else height
         self._send_and_expect(encode_command({"name": "res", "w": w, "h": h}), "OK")
+        # The crop can change (rotation, re-detection); conversions must use
+        # the size the board was last told about.
+        self.width = w
+        self.height = h
+
+    def recover(self) -> None:
+        """After a BOOT or timeout: drain, re-handshake and re-send RES.
+
+        The firmware resets its coordinate space to its defaults on restart,
+        so skipping the RES step would silently misplace every touch.
+        """
+        self._serial.reset_input_buffer()
+        self._line_buffer = b""
+        self.handshake()
+        self.sync_resolution()
 
     def close(self) -> None:
         if not self.closed:
             self.closed = True
             self._serial.close()
 
-    def _send_and_expect(self, line: str, expected: str) -> None:
+    def _send_and_expect(
+        self, line: str, expected: str, extra_s: float = 0.0
+    ) -> None:
         self._serial.write((line + "\n").encode("ascii"))
-        deadline = time.monotonic() + self.timeout_s
+        deadline = time.monotonic() + self.timeout_s + extra_s
         while time.monotonic() < deadline:
             text = self._next_line()
             if text is None:
@@ -159,30 +208,26 @@ class Esp32SerialBackend:
             if kind == expected:
                 return
             if kind == "ERR":
-                raise InputError(text[4:])
+                raise InputError(text[4:] or "unspecified error")
             if kind == "BOOT":
                 self.needs_rehandshake = True
                 raise InputError("board reset (BOOT banner received)")
+        # A late reply must not be mistaken for the next command's answer.
+        self._serial.reset_input_buffer()
+        self._line_buffer = b""
+        self.needs_rehandshake = True
         raise InputError(f"timeout waiting for {expected}")
 
-    def _read_until(self, expected: str, deadline: float) -> bool:
-        while time.monotonic() < deadline:
-            text = self._next_line()
-            if text is None:
-                time.sleep(_POLL_S)
-                continue
-            kind = decode_reply(text)
-            if kind == expected:
-                return True
-            if kind == "BOOT":
-                self.needs_rehandshake = True
-        return False
-
     def _next_line(self) -> str | None:
-        raw = self._serial.readline()
-        if not raw:
-            return None
-        return raw.decode("utf-8", errors="ignore").strip()
+        """Accumulate bytes until LF; pyserial can return partial lines."""
+        while True:
+            raw = self._serial.readline()
+            if not raw:
+                return None
+            self._line_buffer += raw
+            if b"\n" in self._line_buffer:
+                line, self._line_buffer = self._line_buffer.split(b"\n", 1)
+                return line.decode("utf-8", errors="ignore").strip()
 
 
 def _preconfigure_port(port: str) -> None:
