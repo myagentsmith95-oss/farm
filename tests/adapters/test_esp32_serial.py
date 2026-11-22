@@ -1,7 +1,9 @@
 """Serial protocol v1: golden vectors and the ESP32 adapter, without hardware."""
 import json
 import sys
+import time
 import types
+from collections import deque
 from pathlib import Path
 
 import pytest
@@ -16,6 +18,7 @@ from farm.adapters.esp32_serial import (
 from farm.contracts.actions import Key, Swipe, Tap, Text
 from farm.contracts.errors import InputError, UnsupportedAction
 from farm.testing.fake_serial import FakeEsp32Serial
+from tests.contracts.input_backend_suite import InputBackendContract
 
 VECTORS = json.loads(
     (Path(__file__).resolve().parents[2] / "protocol" / "serial_vectors.json").read_text(
@@ -28,6 +31,61 @@ CASES = VECTORS["cases"]
 def make_backend():
     serial = FakeEsp32Serial()
     return serial, Esp32SerialBackend(serial, width=494, height=1019, timeout_s=0.05)
+
+
+class ResponsiveSerial(FakeEsp32Serial):
+    """Firmware-shaped replies; can miss the first N PINGs (cold boot)."""
+
+    def __init__(self, pings_before_ready: int = 0) -> None:
+        super().__init__()
+        self.pings = 0
+        self.pings_before_ready = pings_before_ready
+
+    def write(self, data: bytes) -> int:
+        result = super().write(data)
+        if data == b"PING\n":
+            self.pings += 1
+            if self.pings > self.pings_before_ready:
+                self.feed("READY")
+        elif data.startswith(b"RES "):
+            self.feed("OK")
+        elif data.startswith(b"TAP") or data.startswith(b"SWIPE"):
+            self.feed("DONE")
+        return result
+
+
+class DelayedDoneSerial(FakeEsp32Serial):
+    def __init__(self, delay_s: float) -> None:
+        super().__init__()
+        self.delay_s = delay_s
+        self.wrote_at: float | None = None
+        self.delivered = False
+
+    def write(self, data: bytes) -> int:
+        result = super().write(data)
+        self.wrote_at = time.monotonic()
+        return result
+
+    def readline(self) -> bytes:
+        if (
+            not self.delivered
+            and self.wrote_at is not None
+            and time.monotonic() - self.wrote_at >= self.delay_s
+        ):
+            self.delivered = True
+            return b"DONE\n"
+        return b""
+
+
+class ChoppedSerial(FakeEsp32Serial):
+    """Returns partial lines, like a pyserial read that hits its own timeout."""
+
+    def __init__(self, chunks: list[bytes]) -> None:
+        super().__init__()
+        self.chunks = deque(chunks)
+
+    def readline(self) -> bytes:
+        return self.chunks.popleft() if self.chunks else b""
 
 
 def test_vectors_are_well_formed():
@@ -59,6 +117,7 @@ def test_encoder_matches_every_host_vector(case):
         ("ERR out of range", "ERR"),
         ("ERR unknown command", "ERR"),
         ("ERR line too long", "ERR"),
+        ("ERR", "ERR"),
         ("BOOT touch-fw-2", "BOOT"),
         ("# RECV: PING", "LOG"),
         ("", None),
@@ -196,3 +255,71 @@ def test_pyserial_open_drops_rts_before_dtr_and_drains_stale_input(monkeypatch):
     assert result is handle
     assert handle.dsrdtr is False
     assert handle.order == ["open", "rts", "dtr", "drain"]
+
+
+class TestEsp32SerialContract(InputBackendContract):
+    def make_backend(self):
+        return Esp32SerialBackend(
+            ResponsiveSerial(), width=494, height=1019, timeout_s=0.05
+        )
+
+
+def test_sync_resolution_updates_the_coordinate_space():
+    serial, backend = make_backend()
+    serial.feed("OK")
+    backend.sync_resolution(800, 600)
+    serial.feed("DONE")
+    backend.perform(Tap(x=1, y=1))
+    assert serial.sent == [b"RES 800 600\n", b"TAP 800 600\n"]
+
+
+def test_handshake_repings_until_ready():
+    serial = ResponsiveSerial(pings_before_ready=2)
+    backend = Esp32SerialBackend(serial, 494, 1019, timeout_s=1.5)
+    backend.handshake()
+    assert serial.pings == 3
+
+
+def test_long_swipe_gets_an_extended_deadline():
+    serial = DelayedDoneSerial(0.2)
+    backend = Esp32SerialBackend(serial, 494, 1019, timeout_s=0.05)
+    backend.perform(Swipe(x1=0, y1=0, x2=1, y2=1, duration_ms=500))
+
+
+def test_swipe_duration_bounds_are_enforced_host_side():
+    serial, backend = make_backend()
+    swipe = Swipe(x1=0, y1=0, x2=1, y2=1, duration_ms=250)
+    with pytest.raises(ValueError):
+        backend.perform(swipe.model_copy(update={"duration_ms": 15}))
+    with pytest.raises(ValueError):
+        backend.perform(swipe.model_copy(update={"duration_ms": 10001}))
+    assert serial.sent == []
+
+
+def test_timeout_flags_rehandshake_and_refuses_next_send():
+    serial, backend = make_backend()
+    with pytest.raises(InputError, match="timeout"):
+        backend.perform(Tap(x=0, y=0))
+    assert backend.needs_rehandshake is True
+    with pytest.raises(InputError, match="rehandshake"):
+        backend.perform(Tap(x=0, y=0))
+    assert len(serial.sent) == 1
+
+
+def test_recover_rehandshakes_and_resyncs():
+    serial = ResponsiveSerial()
+    backend = Esp32SerialBackend(serial, 494, 1019, timeout_s=0.05)
+    backend.needs_rehandshake = True
+    backend.recover()
+    assert backend.needs_rehandshake is False
+    assert serial.sent == [b"PING\n", b"RES 494 1019\n"]
+
+
+def test_partial_lines_are_assembled_until_lf():
+    serial = ChoppedSerial([b"DO", b"NE\n"])
+    backend = Esp32SerialBackend(serial, 494, 1019, timeout_s=0.05)
+    backend.perform(Tap(x=0, y=0))
+
+
+def test_bare_err_is_an_error_reply():
+    assert decode_reply("ERR") == "ERR"
