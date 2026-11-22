@@ -1,11 +1,9 @@
 """Evidence layout: explicit pairing, hardware names, three states per device."""
 import json
-from pathlib import Path
 
 import pytest
 
 from farm.contracts.frame import Frame, FrameSource
-
 from tools.capture_evidence import (
     capture_frame,
     device_folder,

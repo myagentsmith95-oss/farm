@@ -32,8 +32,10 @@ ffmpeg -hide_banner -loglevel error -f v4l2 -input_format mjpeg -video_size 1920
 cd /home/agent-smith/Documents/farm && .venv/bin/python tools/probe_esp32.py
 cd /home/agent-smith/Documents/farm && .venv/bin/python tools/probe_capture.py
 
-# Screenshot evidence: before / after-swipe-up / after-swipe-down from EVERY attached card.
+# Three screenshots per paired device: current → swipe → swipe.
 cd /home/agent-smith/Documents/farm && .venv/bin/python tools/capture_evidence.py --evidence var/evidence --resolution 494 1019
+# Override the board↔card pairing if the wiring changed:
+cd /home/agent-smith/Documents/farm && .venv/bin/python tools/capture_evidence.py --map 5C63001367=<card-by-path> --map 5C63002523=<card-by-path>
 # Or capture evidence from inside the full diagnostic:
 cd /home/agent-smith/Documents/farm && .venv/bin/python tools/diagnose_topology.py --evidence var/evidence --resolution 494 1019
 ```
@@ -82,24 +84,56 @@ must re-sync the coordinate space before injecting touch.
 ## Screenshot evidence
 
 `tools/capture_evidence.py` writes a timestamped folder under `var/evidence/`
-(already gitignored). Folder names describe the hardware, not `/dev/videoN`:
+(already gitignored). Each **device** — one ESP32 board paired with one capture
+card — gets one folder containing the three states in sequence:
 
 ```
 var/evidence/<timestamp>/
   README.txt, manifest.json
-  before/<card-vendor-product-port>/before.jpg
-  up/<board-serial>/<card-vendor-product-port>/after-swipe-up.jpg
-  down/<board-serial>/<card-vendor-product-port>/after-swipe-down.jpg
+  device-<board-serial>--card-<vendor>-<product>-<usb-port>/
+    01-current.jpg
+    02-after-swipe-1.jpg
+    03-after-swipe-2.jpg
 ```
 
-Every attached capture card is captured at each stage. Board folders use the
-ESP32 serial from by-id; card folders use vendor:product plus the physical USB
-port from by-path, so a moved card gets a different folder. `README.txt` and
-`manifest.json` keep the full identifiers. `--keep N` (default 5) prunes old runs.
+### Why this layout
 
-The frame writer depends only on the `Frame` contract (`Frame.data`), so a future
-ADB screencap source can reuse it — supply an ADB `CaptureSource` and the same
-folder/file layout works. The swipe actions use the canonical `Swipe` model.
+The earlier version scattered screenshots across `before/`, `up/` and `down/`
+folders and captured every card for every board. That made it hard to answer the
+simple question: "what did this one phone screen do when I swiped its board?"
+The device folder keeps the complete before/after/after sequence together, with
+file names that say exactly which moment they show.
+
+Folder names use stable hardware identities, never `/dev/videoN` — those numbers
+swap between cards after a replug. The board serial comes from by-id, the card
+part comes from vendor:product + by-path, so a moved card gets a different folder
+and the change is visible.
+
+### How the pairing is decided
+
+Frame differencing was tried first and rejected: during bring-up one board's
+swipe produced a 50.15 mean grey change on a card, while another board produced
+0.00 on both — a swipe can legitimately change nothing visible, so a diff is not
+an authority. The pairing is therefore **explicit**, taken from the experiments
+repo `hil-rig/devices/rig-*.yaml`:
+
+```
+5C63001367 -> pci-0000:0a:00.0-usb-0:2:1.0   (/dev/video0)
+5C63002523 -> pci-0000:00:1d.0-usb-0:1.3.1.1:1.0  (/dev/video4)
+```
+
+These are the tool defaults. `--map SERIAL=CARD_KEY` overrides them when the
+wiring changes; `CARD_KEY` can be a full by-path/by-id or a unique fragment.
+`README.txt` and `manifest.json` record the mapping actually used. `--keep N`
+(default 5) prunes old runs.
+
+### Idea behind the code
+
+The frame writer depends only on the `Frame` contract (`Frame.data`) and the
+swipes use the canonical `Swipe` model. When the ADB path is built later, an ADB
+`CaptureSource` and `InputBackend` plug into the same runner — the folder layout,
+naming and three-state sequence do not change. Only the source/binding code is
+new, exactly as the LGPL and seam decisions require.
 
 ## Next after `RESULT: OK`
 
