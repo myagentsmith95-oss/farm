@@ -31,6 +31,11 @@ ffmpeg -hide_banner -loglevel error -f v4l2 -input_format mjpeg -video_size 1920
 # Individual probes.
 cd /home/agent-smith/Documents/farm && .venv/bin/python tools/probe_esp32.py
 cd /home/agent-smith/Documents/farm && .venv/bin/python tools/probe_capture.py
+
+# Screenshot evidence: before / after-swipe-up / after-swipe-down from EVERY attached card.
+cd /home/agent-smith/Documents/farm && .venv/bin/python tools/capture_evidence.py --evidence var/evidence --resolution 494 1019
+# Or capture evidence from inside the full diagnostic:
+cd /home/agent-smith/Documents/farm && .venv/bin/python tools/diagnose_topology.py --evidence var/evidence --resolution 494 1019
 ```
 
 `diagnose_topology.py` exits 0 only when every discovered board answers READY and
@@ -73,6 +78,28 @@ must re-sync the coordinate space before injecting touch.
 - The second card was unstable until its USB hubs got external power; after that
   both cards streamed simultaneously without conflict. Concurrent capture was
   **not** the cause of the colour bars.
+
+## Screenshot evidence
+
+`tools/capture_evidence.py` writes a timestamped folder under `var/evidence/`
+(already gitignored). Folder names describe the hardware, not `/dev/videoN`:
+
+```
+var/evidence/<timestamp>/
+  README.txt, manifest.json
+  before/<card-vendor-product-port>/before.jpg
+  up/<board-serial>/<card-vendor-product-port>/after-swipe-up.jpg
+  down/<board-serial>/<card-vendor-product-port>/after-swipe-down.jpg
+```
+
+Every attached capture card is captured at each stage. Board folders use the
+ESP32 serial from by-id; card folders use vendor:product plus the physical USB
+port from by-path, so a moved card gets a different folder. `README.txt` and
+`manifest.json` keep the full identifiers. `--keep N` (default 5) prunes old runs.
+
+The frame writer depends only on the `Frame` contract (`Frame.data`), so a future
+ADB screencap source can reuse it — supply an ADB `CaptureSource` and the same
+folder/file layout works. The swipe actions use the canonical `Swipe` model.
 
 ## Next after `RESULT: OK`
 

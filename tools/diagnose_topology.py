@@ -65,6 +65,17 @@ def _wait_for_done(handle, wait_s: float) -> bool:
     return False
 
 
+def open_board(port: str):
+    """Plain pyserial handle for an explicit diagnostic action."""
+    return pyserial.Serial(port, 115200, timeout=0.2, dsrdtr=False)
+
+
+def swipe_step(handle, x: int, y1: int, y2: int, ms: int = 500, wait_s: float = 5.0) -> bool:
+    """One locked-step swipe; DONE means it was injected."""
+    handle.write(f"SWIPE {x} {y1} {x} {y2} {ms}\n".encode("ascii"))
+    return _wait_for_done(handle, wait_s)
+
+
 def check_hid_attach(handle, width: int, height: int, wait_s: float = 5.0) -> bool:
     """Swipe up then down: DONE for both proves the HID gadget reaches a phone.
 
@@ -74,11 +85,9 @@ def check_hid_attach(handle, width: int, height: int, wait_s: float = 5.0) -> bo
     x = int(0.5 * width + 0.5)
     low = int(0.75 * height + 0.5)
     high = int(0.25 * height + 0.5)
-    for y1, y2 in ((low, high), (high, low)):
-        handle.write(f"SWIPE {x} {y1} {x} {y2} 500\n".encode("ascii"))
-        if not _wait_for_done(handle, wait_s):
-            return False
-    return True
+    return swipe_step(handle, x, low, high, wait_s=wait_s) and swipe_step(
+        handle, x, high, low, wait_s=wait_s
+    )
 
 
 def force_reset(
@@ -230,7 +239,11 @@ def main() -> int:
     parser.add_argument(
         "--check-hid",
         action="store_true",
-        help="send one centre TAP per READY board to prove the HID gadget reaches a phone",
+        help="swipe up then down per READY board to prove the HID gadget reaches a phone",
+    )
+    parser.add_argument(
+        "--evidence",
+        help="capture before/up/down screenshots from every card into this root",
     )
     args = parser.parse_args()
     resolution = tuple(args.resolution) if args.resolution else None
@@ -280,6 +293,11 @@ def main() -> int:
 
     topology_ok = print_snapshot_change(args.snapshot, topology_snapshot())
     healthy = healthy and topology_ok
+    if args.evidence:
+        from tools.capture_evidence import run as evidence_run
+
+        root = evidence_run(Path(args.evidence), resolution=resolution or (494, 1019))
+        print(f"\nevidence: {root}")
     print(f"\nRESULT: {'OK' if healthy else 'NOT READY'}")
     return 0 if healthy else 1
 
