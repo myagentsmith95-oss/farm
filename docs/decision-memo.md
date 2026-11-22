@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.37
-**Supersedes:** ADF-DEC-V1.36 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.38
+**Supersedes:** ADF-DEC-V1.37 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 22, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -74,6 +74,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C59 | Screenshot-debugging lessons recorded in `docs/HARDWARE_DIAGNOSTICS.md`: `DONE` is only "report sent", not "phone acted"; a V4L2 capture source is a buffer, not a snapshot; identical hashes prove stale capture; establish a known initial state; frame diff cannot decide pairing; never use `/dev/videoN` as identity; one V4L2 opener per node; compare hashes and mean grey difference, not a glance. | ch. 8, C58 | settled |
 | C60 | Correction to C58/C59: viewing the actual frames showed the evidence sequence is **home screen → app drawer → home screen**, not notification-shade open/close. The notification shade needs a top-edge swipe (y≈30→900) and was a separate live test. A large mean-grey diff only proves *something* changed; it does not identify the UI element. Code comments, runbook, memo and saved vocabulary corrected accordingly. | ch. 8, C58/C59 | settled |
 | C61 | Milestone tag `w2-pipeline-ready` records the verified state of the test stand: serial v1 adapter, coldplug-safe discovery, full diagnostics and evidence tooling, 495 green tests and a clean audit. `docs/HARDWARE_DIAGNOSTICS.md` documents the rollback commands (`git checkout w2-pipeline-ready`, then `git switch -c ...`). | ch. 4A, ch. 8 | settled |
+| C62 | Golden-vector runner added at `tools/run_golden_vectors.py` with 11 hardware-free tests. It opens a board without reset, handshakes with PING, re-declares RES whenever the case's coordinate space differs (needed after `RES 65535 65535`), compares all 26 replies verbatim, and treats an unexpected BOOT as a failed run. Live: **26/26 passed** on both `5C63001367` and `5C63002523`. This closes the protocol-contract leg of O8; the firmware extension and §15 checklist remain. | ch. 4A, §15, O8 | settled |
 
 **Open items carried forward**
 
@@ -86,7 +87,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | O5 | Share of ADB-only seats among the fifty, and whether they ever also get an ESP32 and capture card as a fallback. | open |
 | O6 | Firmware/protocol versions at handshake are not recorded, and ADB screencap (C9) stays proposed until W3. Seat resolution and the profile store landed with C20. | open (W3/W5 follow-up) |
 | O7 | The dual-client test uses synthetic labelled frames; replace with recorded footage from target phones before the W5 probe (R9). | open, before W5 |
-| O8 | Task 13: composite keyboard + consumer firmware, heartbeat/STOP/dedup, version banner, golden vectors, and the architecture §15 no-ADB acceptance checklist. Owner TBD, W2. | open, W2 |
+| O8 | Task 13: composite keyboard + consumer firmware, heartbeat/STOP/dedup, version banner, and the architecture §15 no-ADB acceptance checklist. Golden vectors are **done** (C62, 26/26 on both boards); the remaining items still need a flashing-toolchain decision. Owner TBD, W2. | open, W2 |
 | O9 | No LICENSE file is committed by owner decision (22 November 2026). The farm and experiments repositories remain unlicensed until a choice is made; this is a known gap, not an oversight. | open, owner: user |
 | O10 | N5: document that `Frame.captured_ns` is host arrival time; measure content-to-input latency for ADB screencap (ties O4/R10). | open, W3 |
 | O11 | N6: lease-proxy locality note on the `LeaseManager` seam and a `worker_ipc.md` spec under C7 before the runner. | open, W4 |

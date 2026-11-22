@@ -1,10 +1,10 @@
 # Android Device Farm — Project Documentation
 
 **Version:** 1.2 · November 22, 2026
-**Baselines:** farm repo @ `main` (memo V1.36, 495 tests green) ·
+**Baselines:** farm repo @ `main` (memo V1.38, 506 tests green) ·
 experiments repo `stop-esp32-s3-to-reboot` @ `c29950e` (working hardware proof)
 **Status as of:** 22 November 2026 — fix tasks 1–12 and the first W2 serial slice are
-complete (see the memo change log, C25–C60). The farm baseline is stated by memo version
+complete (see the memo change log, C25–C62). The farm baseline is stated by memo version
 and test count because a git hash goes stale on every merge; the experiments hash anchors
 the hardware facts in §§3–8, which were **not** changed by this status refresh.
 **Status labels used everywhere:** [proven] = runs on real hardware in experiments ·
