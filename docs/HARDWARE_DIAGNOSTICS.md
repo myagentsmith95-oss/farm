@@ -171,7 +171,8 @@ measurements that looked like answers but were not.
 Key ideas that came out of it:
 
 1. **Separate the three claims**: report sent (`DONE`), phone reacted (watch it), frame captured (hash/diff). Never infer one from another.
-2. **A camera is a buffer, not a snapshot.** Read the newest frame by draining stale ones.
+2. **A V4L2 capture source is a buffer, not a snapshot.** `VideoCapture.read()`
+   can return an older buffered frame, so drain stale frames before storing one.
 3. **Establish initial state before evidence.** "Current" must mean a defined state, not whatever was left behind.
 4. **Use stable identifiers everywhere** — board serial and card by-path — in folder names, manifests and pairings.
 5. **Keep contract-only code in the evidence path** so the future ADB screencap implementation is a drop-in, not a rewrite.
