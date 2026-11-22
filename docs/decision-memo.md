@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.32
-**Supersedes:** ADF-DEC-V1.31 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.33
+**Supersedes:** ADF-DEC-V1.32 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 22, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -69,6 +69,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C54 | Diagnostic enforcement: a baseline snapshot now fails the run if a previously known board or card disappears (the baseline is not overwritten while missing, so the failure stays visible). Recovery re-sends `RES` when `--resolution W H` is given — required because BOOT resets the firmware's coordinate space. Opt-in `--check-hid` sends one centre TAP per READY board; `DONE` proves the HID gadget reaches a phone, `ERR usb send failed` proves it does not. Verified live: both boards DONE, both cards ACTIVE, RESULT OK; a deliberately stale baseline correctly reported MISSING and RESULT NOT READY. | ch. 4A, C52/C53 | settled |
 | C55 | `--check-hid` now performs a 500 ms swipe up followed by a 500 ms swipe down per board instead of a single tap, so the check exercises the digitizer's movement path and can wake a sleeping screen. Live run: both boards `HID attach: DONE`, both cards ACTIVE, `RESULT: OK` — the second seat returned from BLACK after the swipe pair. | ch. 4A, C54 | settled |
 | C56 | Screenshot evidence: `tools/capture_evidence.py` captures before / after-swipe-up / after-swipe-down frames from **every** attached capture card, keyed by hardware identity — board folders use the ESP32 serial, card folders use vendor:product + by-path. Timestamped runs under gitignored `var/evidence/`, with `README.txt` and `manifest.json` keeping full identifiers and `--keep N` pruning. The frame writer depends only on the `Frame` contract so a future ADB screencap source reuses it; `diagnose_topology.py --evidence` invokes it. | ch. 4A, ch. 8, C9 | settled (UVC path); ADB reuse designed |
+| C57 | Evidence restructured to one folder per **paired device** (board + card), holding `01-current.jpg`, `02-after-swipe-1.jpg`, `03-after-swipe-2.jpg`. Board↔card pairing is explicit (`--map SERIAL=CARD_KEY`, defaults from `hil-rig/devices/rig-*.yaml`) because frame-diff pairing was unreliable: one board's swipe changed a card by 50.15 mean grey, another by 0.00. README and manifest explain why, how and the ADB-reuse idea. Old evidence folders cleared. | ch. 4A, ch. 8, C56 | settled |
 
 **Open items carried forward**
 

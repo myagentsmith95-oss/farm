@@ -243,7 +243,13 @@ def main() -> int:
     )
     parser.add_argument(
         "--evidence",
-        help="capture before/up/down screenshots from every card into this root",
+        help="capture three screenshots per paired device into this root",
+    )
+    parser.add_argument(
+        "--map",
+        action="append",
+        metavar="SERIAL=CARD_KEY",
+        help="board↔card pairing for evidence (repeatable)",
     )
     args = parser.parse_args()
     resolution = tuple(args.resolution) if args.resolution else None
@@ -294,9 +300,14 @@ def main() -> int:
     topology_ok = print_snapshot_change(args.snapshot, topology_snapshot())
     healthy = healthy and topology_ok
     if args.evidence:
+        from tools.capture_evidence import parse_map
         from tools.capture_evidence import run as evidence_run
 
-        root = evidence_run(Path(args.evidence), resolution=resolution or (494, 1019))
+        root = evidence_run(
+            Path(args.evidence),
+            resolution=resolution or (494, 1019),
+            mapping=parse_map(args.map) or None,
+        )
         print(f"\nevidence: {root}")
     print(f"\nRESULT: {'OK' if healthy else 'NOT READY'}")
     return 0 if healthy else 1
