@@ -1,8 +1,10 @@
 """Stable hardware discovery: no hardcoded /dev/videoN, no webcam confusion."""
 from farm.adapters.udev import (
+    diff_snapshots,
     is_webcam,
     physical_key,
     synthesize_by_id,
+    topology_snapshot,
 )
 
 
@@ -33,3 +35,27 @@ def test_synthesized_by_id_is_unique_per_physical_port():
 
 def test_synthesized_by_id_is_nonblank():
     assert synthesize_by_id("0000", "0000", "port")
+
+
+def test_snapshot_is_a_stable_sorted_structure():
+    snap = topology_snapshot()
+    assert set(snap) == {"esp32", "cards"}
+    assert snap["esp32"] == sorted(snap["esp32"])
+    assert snap["cards"] == sorted(snap["cards"])
+
+
+def test_diff_reports_added_removed_and_changed_devices():
+    old = {"esp32": ["board-a"], "cards": ["card-a"]}
+    new = {"esp32": ["board-b"], "cards": ["card-a", "card-b"]}
+    result = diff_snapshots(old, new)
+    assert result["added"] == ["board-b", "card-b"]
+    assert result["removed"] == ["board-a"]
+    assert result["changed"] == []
+
+
+def test_diff_detects_a_port_change_for_the_same_card():
+    old = {"esp32": [], "cards": ["usb-534d:2109-port1"]}
+    new = {"esp32": [], "cards": ["usb-534d:2109-port2"]}
+    result = diff_snapshots(old, new)
+    assert "usb-534d:2109-port1" in result["removed"]
+    assert "usb-534d:2109-port2" in result["added"]
