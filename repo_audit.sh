@@ -55,7 +55,7 @@ src/farm/vision/__init__.py src/farm/console/__init__.py src/farm/console/views/
 tests/__init__.py tests/contracts/__init__.py tests/adapters/__init__.py
 tests/adapters/test_esp32_serial.py
 tests/adapters/test_udev_discovery.py tests/adapters/test_uvc_cv2.py
-tests/tools/__init__.py tests/tools/test_diagnose_topology.py tests/tools/test_capture_evidence.py
+tests/tools/__init__.py tests/tools/test_diagnose_topology.py tests/tools/test_capture_evidence.py tests/tools/test_run_golden_vectors.py
 tests/test_contracts_purity.py tests/d6_day5_dual_client_test.py tests/test_no_empty_placeholders.py
 tests/test_contract_suite_imports.py
 tests/properties/test_device_profile.py tests/properties/test_actions.py tests/properties/test_frame.py
@@ -73,7 +73,7 @@ docs/farm-code-review-v1.md docs/farm-code-review-v2.md docs/farm-code-review-v3
 adoption/.gitkeep firmware/esp32_seat/.gitkeep ops/systemd/.gitkeep probe/.gitkeep protocol/.gitkeep
 scenarios/.gitkeep services/maa_service/.gitkeep tests/hardware/.gitkeep tests/input/.gitkeep
 tests/integration/.gitkeep tests/properties/.gitkeep tests/soak/.gitkeep tests/unit/.gitkeep tools/__init__.py tools/.gitkeep tools/probe_esp32.py tools/probe_capture.py
-tools/diagnose_topology.py tools/capture_evidence.py
+tools/diagnose_topology.py tools/capture_evidence.py tools/run_golden_vectors.py
 "
 MISSING=0
 for f in $EXPECTED; do

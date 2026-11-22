@@ -82,6 +82,15 @@ blocks until `DONE`, as required by the InputBackend seam (N4). Only Tap and Swi
 supported until composite firmware lands; Key and Text raise `UnsupportedAction`.
 The adapter also runs the reusable `InputBackendContract` suite.
 
+The third leg — the real firmware — is checked by `tools/run_golden_vectors.py`. It
+opens a board without resetting it (`open_esp32_no_reset`), handshakes with PING, and
+sends all 26 vector lines, comparing each reply verbatim. Before a case it re-declares
+`RES` whenever the required coordinate space differs from the current one; this is
+essential after `RES 65535 65535` succeeds, or the out-of-range TAP/SWIPE cases would
+pass for the wrong reason. A `BOOT` banner during the run fails that case and every
+case after it. Run: `.venv/bin/python tools/run_golden_vectors.py --serial 5C63001367`.
+Verified 26/26 on both seats on 22 November 2026.
+
 Host-side hardening (all covered by tests):
 
 - The deadline for one command is `timeout_s + gesture duration` — a 10 s swipe must not

@@ -205,7 +205,26 @@ That produces a detached HEAD. To work from it, create a branch:
 git switch -c work-from-w2-pipeline w2-pipeline-ready
 ```
 
+## Golden vectors against a real board
+
+The 26 protocol cases are driven against the firmware by:
+
+```bash
+.venv/bin/python tools/run_golden_vectors.py --serial 5C63001367 --timeout 20
+```
+
+The runner opens the port with `open_esp32_no_reset()` (never toggles DTR/RTS),
+re-PINGs until READY, then sends each host line from `protocol/serial_vectors.json`
+and compares the board's reply verbatim. It re-sends `RES <w> <h>` whenever the case's
+coordinate space differs from the current one — needed because `RES 65535 65535`
+changes the space, which would otherwise make the out-of-range TAP/SWIPE cases pass
+for the wrong reason. An unexpected `BOOT` fails that case and all later ones.
+
+This is a protocol check, not a physical one: `DONE` still only means the HID report
+was sent. Verified **26/26** on both `5C63001367` and `5C63002523` on 22 November 2026.
+
 ## Next after `RESULT: OK`
 
-Run the 26 golden vectors against board `5C63001367`, then the no-ADB acceptance
-checklist in `ARCHITECTURE.md` §15.
+Golden vectors are done. The next step is the no-ADB acceptance checklist in
+`ARCHITECTURE.md` §15, followed by the firmware extension (which needs a flashing
+toolchain decision).
