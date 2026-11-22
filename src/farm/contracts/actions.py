@@ -35,10 +35,12 @@ class KeyCode(StrEnum):
     """Canonical key names shared by scenarios and both seat classes (D-7).
 
     HOME/BACK map to consumer usages 0x223/0x224 in composite firmware;
-    ENTER/DEL map to keyboard usages 0x28/0x2A. APP_SWITCH has no HID usage
-    and is performed as a touch macro or ADB keycode 187, so the HID backend
-    reports supports() == False for it. Power and volume controls are out of
-    scope by decision D-4.
+    ENTER/DEL map to keyboard usages 0x28/0x2A. APP_SWITCH does have a HID
+    path (usage 0x1a2 → KEY_APPSELECT 580 → Android keycode 187 on common
+    keymaps), but that mapping is kernel/keymap-version dependent and is not
+    relied on: the farm uses a touch macro or ADB keycode 187, and the HID
+    backend reports supports() == False for it. Power and volume controls
+    are out of scope by decision D-4.
     """
 
     HOME = "HOME"
