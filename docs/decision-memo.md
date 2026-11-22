@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.35
-**Supersedes:** ADF-DEC-V1.34 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.36
+**Supersedes:** ADF-DEC-V1.35 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 22, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -70,8 +70,9 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C55 | `--check-hid` now performs a 500 ms swipe up followed by a 500 ms swipe down per board instead of a single tap, so the check exercises the digitizer's movement path and can wake a sleeping screen. Live run: both boards `HID attach: DONE`, both cards ACTIVE, `RESULT: OK` — the second seat returned from BLACK after the swipe pair. | ch. 4A, C54 | settled |
 | C56 | Screenshot evidence: `tools/capture_evidence.py` captures before / after-swipe-up / after-swipe-down frames from **every** attached capture card, keyed by hardware identity — board folders use the ESP32 serial, card folders use vendor:product + by-path. Timestamped runs under gitignored `var/evidence/`, with `README.txt` and `manifest.json` keeping full identifiers and `--keep N` pruning. The frame writer depends only on the `Frame` contract so a future ADB screencap source reuses it; `diagnose_topology.py --evidence` invokes it. | ch. 4A, ch. 8, C9 | settled (UVC path); ADB reuse designed |
 | C57 | Evidence restructured to one folder per **paired device** (board + card), holding `01-current.jpg`, `02-after-swipe-1.jpg`, `03-after-swipe-2.jpg`. Board↔card pairing is explicit (`--map SERIAL=CARD_KEY`, defaults from `hil-rig/devices/rig-*.yaml`) because frame-diff pairing was unreliable: one board's swipe changed a card by 50.15 mean grey, another by 0.00. README and manifest explain why, how and the ADB-reuse idea. Old evidence folders cleared. | ch. 4A, ch. 8, C56 | settled |
-| C58 | Evidence capture fixed: the sequence now closes the Android **notification shade** first (so `01-current.jpg` always starts closed), then opens it, then closes it again. `UvcCaptureSource.refresh()` discards `drain - 1` buffered frames before storing the newest one (`--drain`, default 3) because OpenCV `read()` returned pre-swipe frames and made all three screenshots byte-identical. Live verification: open-vs-closed mean grey difference 67.3 and 61.1 on the two seats. | ch. 4A, ch. 8, C57 | settled |
+| C58 | Evidence capture fixed: `UvcCaptureSource.refresh()` discards `drain - 1` buffered frames before storing the newest one (`--drain`, default 3) because OpenCV `read()` returned pre-swipe frames and made all three screenshots byte-identical. The sequence now uses a three-step swipe pair with explicit waits. Live verification: frame-to-frame mean grey difference 67.3 and 61.1 on the two seats. | ch. 4A, ch. 8, C57 | settled |
 | C59 | Screenshot-debugging lessons recorded in `docs/HARDWARE_DIAGNOSTICS.md`: `DONE` is only "report sent", not "phone acted"; a V4L2 capture source is a buffer, not a snapshot; identical hashes prove stale capture; establish a known initial state; frame diff cannot decide pairing; never use `/dev/videoN` as identity; one V4L2 opener per node; compare hashes and mean grey difference, not a glance. | ch. 8, C58 | settled |
+| C60 | Correction to C58/C59: viewing the actual frames showed the evidence sequence is **home screen → app drawer → home screen**, not notification-shade open/close. The notification shade needs a top-edge swipe (y≈30→900) and was a separate live test. A large mean-grey diff only proves *something* changed; it does not identify the UI element. Code comments, runbook, memo and saved vocabulary corrected accordingly. | ch. 8, C58/C59 | settled |
 
 **Open items carried forward**
 
