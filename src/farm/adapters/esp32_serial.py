@@ -152,6 +152,7 @@ class Esp32SerialBackend:
         """
         deadline = time.monotonic() + self.timeout_s
         next_ping = 0.0
+        saw_boot = False
         while time.monotonic() < deadline:
             now = time.monotonic()
             if now >= next_ping:
@@ -161,9 +162,15 @@ class Esp32SerialBackend:
             if text:
                 kind = decode_reply(text)
                 if kind == "READY":
+                    if saw_boot:
+                        # A restart resets the firmware's coordinate space to
+                        # its defaults. Re-send RES before declaring the seat
+                        # ready, or a direct caller gets misplaced touches.
+                        self.sync_resolution()
                     self.needs_rehandshake = False
                     return
                 if kind == "BOOT":
+                    saw_boot = True
                     self.needs_rehandshake = True
             else:
                 time.sleep(_POLL_S)
