@@ -2,7 +2,7 @@
 name = "farm"
 version = "0.0.0"
 requires-python = ">=3.11"
-dependencies = ["pydantic>=2,<3"]
+dependencies = ["pydantic>=2,<3", "pyserial>=3.5,<4"]
 
 [project.optional-dependencies]
 dev = [

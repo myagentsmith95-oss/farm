@@ -1,0 +1,403 @@
+{
+  "protocol": "serial_v1",
+  "source": "stop-esp32-s3-to-reboot @ c29950e, hil_touch_updated.ino (FW_NAME touch-fw-2)",
+  "transport": {
+    "baud": 115200,
+    "framing": "one ASCII line per message, LF terminated",
+    "max_line_chars": 96,
+    "flow": "strict lockstep: one command in flight; board blocks while executing"
+  },
+  "coordinate_space": [
+    494,
+    1019
+  ],
+  "cases": [
+    {
+      "id": "ping",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "ping"
+      },
+      "host": "PING",
+      "board": "READY",
+      "note": "handshake; repeated during boot"
+    },
+    {
+      "id": "res_nominal",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "res",
+        "w": 494,
+        "h": 1019
+      },
+      "host": "RES 494 1019",
+      "board": "OK"
+    },
+    {
+      "id": "res_max",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "res",
+        "w": 65535,
+        "h": 65535
+      },
+      "host": "RES 65535 65535",
+      "board": "OK"
+    },
+    {
+      "id": "res_zero",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "res",
+        "w": 0,
+        "h": 10
+      },
+      "host": "RES 0 10",
+      "board": "ERR bad resolution"
+    },
+    {
+      "id": "res_negative",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "res",
+        "w": -1,
+        "h": 10
+      },
+      "host": "RES -1 10",
+      "board": "ERR bad resolution"
+    },
+    {
+      "id": "res_too_large",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "res",
+        "w": 65536,
+        "h": 10
+      },
+      "host": "RES 65536 10",
+      "board": "ERR bad resolution"
+    },
+    {
+      "id": "tap_origin",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "tap",
+        "x": 0,
+        "y": 0
+      },
+      "host": "TAP 0 0",
+      "board": "DONE"
+    },
+    {
+      "id": "tap_center",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "tap",
+        "x": 247,
+        "y": 509
+      },
+      "host": "TAP 247 509",
+      "board": "DONE",
+      "note": "case used in the proven closed-loop run"
+    },
+    {
+      "id": "tap_upper_boundary",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "tap",
+        "x": 494,
+        "y": 1019
+      },
+      "host": "TAP 494 1019",
+      "board": "DONE",
+      "note": "firmware inRange uses <="
+    },
+    {
+      "id": "tap_default_hold",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "tap",
+        "x": 10,
+        "y": 20
+      },
+      "host": "TAP 10 20",
+      "board": "DONE",
+      "note": "default hold 200 ms"
+    },
+    {
+      "id": "tap_min_hold",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "tap",
+        "x": 10,
+        "y": 20,
+        "hold_ms": 20
+      },
+      "host": "TAP 10 20 20",
+      "board": "DONE"
+    },
+    {
+      "id": "tap_max_hold",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "tap",
+        "x": 10,
+        "y": 20,
+        "hold_ms": 5000
+      },
+      "host": "TAP 10 20 5000",
+      "board": "DONE"
+    },
+    {
+      "id": "tap_hold_too_short",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "tap",
+        "x": 10,
+        "y": 20,
+        "hold_ms": 19
+      },
+      "host": "TAP 10 20 19",
+      "board": "ERR out of range"
+    },
+    {
+      "id": "tap_hold_too_long",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "tap",
+        "x": 10,
+        "y": 20,
+        "hold_ms": 5001
+      },
+      "host": "TAP 10 20 5001",
+      "board": "ERR out of range"
+    },
+    {
+      "id": "tap_x_out",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "tap",
+        "x": 495,
+        "y": 0
+      },
+      "host": "TAP 495 0",
+      "board": "ERR out of range"
+    },
+    {
+      "id": "tap_y_out",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "tap",
+        "x": 0,
+        "y": 1020
+      },
+      "host": "TAP 0 1020",
+      "board": "ERR out of range"
+    },
+    {
+      "id": "tap_negative",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "tap",
+        "x": -1,
+        "y": 0
+      },
+      "host": "TAP -1 0",
+      "board": "ERR out of range"
+    },
+    {
+      "id": "swipe_min_duration",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "swipe",
+        "x1": 0,
+        "y1": 0,
+        "x2": 494,
+        "y2": 1019,
+        "ms": 16
+      },
+      "host": "SWIPE 0 0 494 1019 16",
+      "board": "DONE"
+    },
+    {
+      "id": "swipe_proven",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "swipe",
+        "x1": 247,
+        "y1": 764,
+        "x2": 247,
+        "y2": 254,
+        "ms": 500
+      },
+      "host": "SWIPE 247 764 247 254 500",
+      "board": "DONE",
+      "note": "case used in the proven closed-loop run"
+    },
+    {
+      "id": "swipe_max_duration",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "swipe",
+        "x1": 0,
+        "y1": 0,
+        "x2": 100,
+        "y2": 100,
+        "ms": 10000
+      },
+      "host": "SWIPE 0 0 100 100 10000",
+      "board": "DONE"
+    },
+    {
+      "id": "swipe_duration_too_short",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "swipe",
+        "x1": 0,
+        "y1": 0,
+        "x2": 100,
+        "y2": 100,
+        "ms": 15
+      },
+      "host": "SWIPE 0 0 100 100 15",
+      "board": "ERR out of range"
+    },
+    {
+      "id": "swipe_duration_too_long",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "swipe",
+        "x1": 0,
+        "y1": 0,
+        "x2": 100,
+        "y2": 100,
+        "ms": 10001
+      },
+      "host": "SWIPE 0 0 100 100 10001",
+      "board": "ERR out of range"
+    },
+    {
+      "id": "swipe_out_of_range",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "swipe",
+        "x1": -1,
+        "y1": 0,
+        "x2": 100,
+        "y2": 100,
+        "ms": 500
+      },
+      "host": "SWIPE -1 0 100 100 500",
+      "board": "ERR out of range"
+    },
+    {
+      "id": "unknown_command",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "raw",
+        "line": "FROB"
+      },
+      "host": "FROB",
+      "board": "ERR unknown command"
+    },
+    {
+      "id": "line_too_long",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "raw",
+        "line": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+      },
+      "host": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+      "board": "ERR line too long",
+      "note": "97 chars exceeds MAX_LINE 96"
+    },
+    {
+      "id": "boot_banner",
+      "res": [
+        494,
+        1019
+      ],
+      "command": {
+        "name": "boot"
+      },
+      "host": null,
+      "board": "BOOT touch-fw-2",
+      "note": "board-initiated on every restart; an unexpected BOOT means a reset"
+    }
+  ]
+}

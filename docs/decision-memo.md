@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.22
-**Supersedes:** ADF-DEC-V1.21 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.23
+**Supersedes:** ADF-DEC-V1.22 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 22, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -57,6 +57,8 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C42 | CR-8/CR-7b (Task 11): `CaptureSource.latest(max_age_ms)` rejects negative values with `ValueError`; `latest(0)` still accepts a frame stamped at the current clock. `SimDevice.attach()` validates the entire role batch before attaching any, so a rejected batch leaves no queued event and no partial state. | ch. 4.1, ch. 4.2 | settled |
 | C43 | `SimDevice.attach()` also rejects a role repeated within one batch, so `attach([HID, HID])` raises before queuing anything. `FakeDeviceEventSource` consumes its preload list on the first `events()` call, so coldplug is never re-delivered; the finite fake may still be iterated again to drain later live events (the incremental `drain()` pattern). The contract and reusable suite document both rules. | ch. 4.1, C29 | settled |
 | C44 | CR-10 definition recovered and O17 closed as a recovery item: `SeatRegistry.apply()` constructs two `SeatState` models per seat per event to compare status and modes. Reclassified as a W9 performance item — derive the comparison from claim sets and build `SeatState` only on demand. Deferred deliberately. | ch. 4.2, O17 | settled (definition); work deferred to W9 |
+| C45 | Serial protocol v1 is specified in `protocol/serial_v1.md` from the proven touch-fw-2 firmware: UART0 bridge at 115200, LF-framed ASCII lines, lockstep `PING`/`RES`/`TAP`/`SWIPE`, error vocabulary, digitizer coordinate mapping, timing and the no-reset open sequence. `protocol/serial_vectors.json` holds 26 golden cases (boundaries, invalid inputs, boot banner) shared by Python and firmware. | ch. 4A, C7, arch §5–6 | settled (base); hardening designed |
+| C46 | First hardware-free adapter slice: `farm.adapters.esp32_serial` provides the encoder/reply decoder, `Esp32SerialBackend` (Tap/Swipe only, normalized→crop-pixel conversion, blocking `perform`, BOOT detection) and `open_esp32_no_reset` with lazy pyserial import. Tests use `farm.testing.FakeEsp32Serial`; no hardware needed. pyserial is now a declared runtime dependency. | ch. 4A, ch. 4.1, C7 | settled (base); no-ADB acceptance pending W2 hardware |
 
 **Open items carried forward**
 
