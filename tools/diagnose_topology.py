@@ -50,12 +50,7 @@ def classify_tap(line: str) -> str:
     return "OTHER"
 
 
-def check_hid_attach(handle, width: int, height: int, wait_s: float = 5.0) -> bool:
-    """One harmless centre tap: DONE means the HID gadget reaches a phone."""
-    # Same half-up conversion as Esp32SerialBackend._to_pixels.
-    x = int(0.5 * width + 0.5)
-    y = int(0.5 * height + 0.5)
-    handle.write(f"TAP {x} {y}\n".encode("ascii"))
+def _wait_for_done(handle, wait_s: float) -> bool:
     deadline = time.monotonic() + wait_s
     while time.monotonic() < deadline:
         raw = handle.readline()
@@ -68,6 +63,22 @@ def check_hid_attach(handle, width: int, height: int, wait_s: float = 5.0) -> bo
         else:
             time.sleep(0.01)
     return False
+
+
+def check_hid_attach(handle, width: int, height: int, wait_s: float = 5.0) -> bool:
+    """Swipe up then down: DONE for both proves the HID gadget reaches a phone.
+
+    A vertical pair also exercises the digitizer's movement path, not just a
+    single touch-down, and may wake a sleeping screen.
+    """
+    x = int(0.5 * width + 0.5)
+    low = int(0.75 * height + 0.5)
+    high = int(0.25 * height + 0.5)
+    for y1, y2 in ((low, high), (high, low)):
+        handle.write(f"SWIPE {x} {y1} {x} {y2} 500\n".encode("ascii"))
+        if not _wait_for_done(handle, wait_s):
+            return False
+    return True
 
 
 def force_reset(

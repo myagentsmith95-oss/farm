@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.30
-**Supersedes:** ADF-DEC-V1.29 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.31
+**Supersedes:** ADF-DEC-V1.30 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 22, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -67,6 +67,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C52 | Topology reliability: `find_active_area()` now uses the fraction of pixels above background+25 per column/row instead of mean luma, so dim screens no longer shift the crop; `stable_area()` majority-votes jittery samples. `tools/diagnose_topology.py` reports every board (PING/READY, BOOT count) and card (NO_SIGNAL / BLACK / ACTIVE with crop and stability) with one exit code. `topology_snapshot()`/`diff_snapshots()` record stable identities so a replug or port move is reported as an added/removed id — readiness for topology changes, though no live pyudev monitor exists yet. | ch. 4A, C50, arch §7/§9 | settled |
 | C53 | Hardware runbook and recovery: `docs/HARDWARE_DIAGNOSTICS.md` keeps the diagnostic commands, the dual-HDMI ffplay command and the symptom→cause→fix table from the bring-up (colour bars, black screen, busy V4L node, hung board, by-path churn, ttyACM renumbering). `diagnose_topology.py` gains `--recover`: a deliberate DTR/RTS reset that waits for `BOOT`, re-PINGs and is explicitly an exception to no-reset-on-open. A hung board (`5C63002523`) was recovered this way; a 30 s soak afterwards gave 55/55 READY on both boards. | ch. 4A, ch. 8, C52 | settled |
 | C54 | Diagnostic enforcement: a baseline snapshot now fails the run if a previously known board or card disappears (the baseline is not overwritten while missing, so the failure stays visible). Recovery re-sends `RES` when `--resolution W H` is given — required because BOOT resets the firmware's coordinate space. Opt-in `--check-hid` sends one centre TAP per READY board; `DONE` proves the HID gadget reaches a phone, `ERR usb send failed` proves it does not. Verified live: both boards DONE, both cards ACTIVE, RESULT OK; a deliberately stale baseline correctly reported MISSING and RESULT NOT READY. | ch. 4A, C52/C53 | settled |
+| C55 | `--check-hid` now performs a 500 ms swipe up followed by a 500 ms swipe down per board instead of a single tap, so the check exercises the digitizer's movement path and can wake a sleeping screen. Live run: both boards `HID attach: DONE`, both cards ACTIVE, `RESULT: OK` — the second seat returned from BLACK after the swipe pair. | ch. 4A, C54 | settled |
 
 **Open items carried forward**
 
