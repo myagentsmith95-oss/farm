@@ -114,8 +114,9 @@ def test_capture_sequence_waits_between_every_step(tmp_path):
         between=0.4,
         sleep=sleeps.append,
     )
-    assert sleeps == [0.3, 0.4, 0.3]
-    assert swipes == [(764, 255), (255, 764)]
+    # close the notification shade first, then open it, then close it again
+    assert sleeps == [0.3, 0.4, 0.3, 0.4, 0.3]
+    assert swipes == [(764, 255), (255, 764), (764, 255)]
     assert sorted(p.name for p in tmp_path.iterdir()) == [
         "01-current.jpg",
         "02-after-swipe-1.jpg",
