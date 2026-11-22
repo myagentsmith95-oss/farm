@@ -129,6 +129,12 @@ wiring changes; `CARD_KEY` can be a full by-path/by-id or a unique fragment.
 
 ### Idea behind the code
 
+The frame writer depends only on the `Frame` contract (`Frame.data`) and the
+swipes use the canonical `Swipe` model. When the ADB path is built later, an ADB
+`CaptureSource` and `InputBackend` plug into the same runner — the folder layout,
+naming and three-state sequence do not change. Only the source/binding code is
+new, exactly as the LGPL and seam decisions require.
+
 ### Why the three frames were identical, and the fix
 
 Two causes were found, both in the capture path, not in HID:
@@ -145,11 +151,30 @@ Two causes were found, both in the capture path, not in HID:
 Verified live: the open-shade frame differs from the closed-shade frames by
 about 67 (board `5C63001367`) and 61 (board `5C63002523`) mean grey levels.
 
-The frame writer depends only on the `Frame` contract (`Frame.data`) and the
-swipes use the canonical `Swipe` model. When the ADB path is built later, an ADB
-`CaptureSource` and `InputBackend` plug into the same runner — the folder layout,
-naming and three-state sequence do not change. Only the source/binding code is
-new, exactly as the LGPL and seam decisions require.
+### Key ideas, findings and traps
+
+This was a long debugging session. The traps were mostly about *false signals* —
+measurements that looked like answers but were not.
+
+| Trap | What it looked like | What was actually true |
+|---|---|---|
+| `DONE` from firmware means the phone acted | Every swipe returned `DONE`, so the evidence should show a change | `DONE` only means the ESP32 sent a HID report. The phone's reaction is a separate fact and must be observed on the screen |
+| Identical screenshots mean the gesture failed | All three files byte-identical, so we tried new gestures, longer waits and `RES` sync | HID was working (the shade was visibly pulled down). OpenCV's `read()` was returning a frame buffered *before* the swipe |
+| Waiting longer fixes stale frames | 1–2 s waits made no difference | The buffer still held old frames. The fix was to *discard* `drain - 1` frames, not to wait more |
+| A fresh capture per screenshot is cleaner | Each state opened a new `UvcCaptureSource`; timing was hidden inside `start()` (2 s settle + 15 warm-up frames) | Re-opening made timing uncontrolled. One source stays open per device; explicit `settle`/`between` waits govern the sequence |
+| The first frame is a neutral baseline | `01-current.jpg` often showed the notification shade already open from a previous run | The sequence must establish a known state: close the shade first, then open, then close again |
+| Frame diff can pair boards with cards | A 50.15 diff on one card suggested a pairing; 0.00 on both suggested none | A swipe can legitimately produce no visible change. Pairing is explicit from `hil-rig/devices/rig-*.yaml`, not inferred from pixels |
+| `/dev/videoN` identifies a card | The experiments hardcoded `/dev/video2` | On this host `/dev/video2` is the webcam; the card was `/dev/video0`. Nodes swap after replug. Use by-path/by-id identities |
+| Two capture cards cannot run together | One card failed to open while another tool held the device | Concurrent capture works; the failure was a busy V4L2 node (ffplay). One opener per node, plus external hub power |
+| A visual glance is enough to compare frames | Frames "looked the same" | Compare SHA-256 hashes and mean grey difference. Identical hashes prove the capture is stale, not that the UI is static |
+
+Key ideas that came out of it:
+
+1. **Separate the three claims**: report sent (`DONE`), phone reacted (watch it), frame captured (hash/diff). Never infer one from another.
+2. **A camera is a buffer, not a snapshot.** Read the newest frame by draining stale ones.
+3. **Establish initial state before evidence.** "Current" must mean a defined state, not whatever was left behind.
+4. **Use stable identifiers everywhere** — board serial and card by-path — in folder names, manifests and pairings.
+5. **Keep contract-only code in the evidence path** so the future ADB screencap implementation is a drop-in, not a rewrite.
 
 ## Next after `RESULT: OK`
 
