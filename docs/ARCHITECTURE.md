@@ -1,10 +1,10 @@
 # Android Device Farm — Project Documentation
 
 **Version:** 1.2 · November 22, 2026
-**Baselines:** farm repo @ `main` (memo V1.25, 456 tests green) ·
+**Baselines:** farm repo @ `main` (memo V1.26, 466 tests green) ·
 experiments repo `stop-esp32-s3-to-reboot` @ `c29950e` (working hardware proof)
 **Status as of:** 22 November 2026 — fix tasks 1–12 and the first W2 serial slice are
-complete (see the memo change log, C25–C49). The farm baseline is stated by memo version
+complete (see the memo change log, C25–C50). The farm baseline is stated by memo version
 and test count because a git hash goes stale on every merge; the experiments hash anchors
 the hardware facts in §§3–8, which were **not** changed by this status refresh.
 **Status labels used everywhere:** [proven] = runs on real hardware in experiments ·
@@ -350,7 +350,7 @@ seat-01: modes [hid]
 
 ### 9.4 Testing & process [built]
 
-456 tests: property tests (hypothesis) pin model invariants; reusable contract suites per
+466 tests: property tests (hypothesis) pin model invariants; reusable contract suites per
 seam with anti-vacuity guards; SimDevice drives the production registry through attach/
 detach/coldplug in CI; dual-client test proves the farm seams and a Maa-shaped controller
 speak the same verbs (shape only — see §12). CI: ruff, mypy, lint-imports, pytest.
@@ -378,13 +378,13 @@ green fix → memo row + audit update.
 
 | Component | State |
 |---|---|
-| Contracts, registry, fakes, suites, gates | **[built]** 456 tests green @ main (memo V1.25) |
+| Contracts, registry, fakes, suites, gates | **[built]** 466 tests green @ main (memo V1.26) |
 | Digitizer firmware (TAP/SWIPE, 2-finger descriptor) | **[proven]** one phone, screenshots saved |
 | HDMI capture + active-area + RES alignment | **[proven]** one phone |
 | No-reset serial discipline | **[proven]** |
 | Composite keys/text, session hardening | [designed] |
 | Serial v1 golden vectors + `esp32_serial` adapter | **[built]** protocol spec, 26 vectors, hardware-free tests |
-| pyudev / uvc_cv2 adapters in farm | [designed] — port from experiments |
+| udev / uvc_cv2 discovery + capture adapters | **[built]** software only; hardware verification pending (Stage 1) |
 | Runner, vision, console, calibration core | [designed] |
 | No-ADB phone acceptance, rotation, 50-seat scale, latency budget | [unverified] |
 
