@@ -179,6 +179,32 @@ Key ideas that came out of it:
 4. **Use stable identifiers everywhere** — board serial and card by-path — in folder names, manifests and pairings.
 5. **Keep contract-only code in the evidence path** so the future ADB screencap implementation is a drop-in, not a rewrite.
 
+## Milestone tag: `w2-pipeline-ready`
+
+The git tag `w2-pipeline-ready` marks this verified state of the test stand:
+
+- contracts, registry, serial protocol v1, no-reset ESP32 adapter, stable
+  hardware discovery, UVC capture adapter and fake-serial tests;
+- `diagnose_topology.py` with expected-topology enforcement, `--recover`,
+  `--check-hid` and `--evidence`;
+- evidence capture with explicit board↔card pairing and three frames per device;
+- 495 green tests, mypy strict, ruff, lint-imports and a clean repo audit;
+- memo V1.36, change log through C60.
+
+It is an annotated tag, so `git show w2-pipeline-ready` records why it exists.
+To roll back to this exact state:
+
+```bash
+git fetch --tags
+git checkout w2-pipeline-ready
+```
+
+That produces a detached HEAD. To work from it, create a branch:
+
+```bash
+git switch -c work-from-w2-pipeline w2-pipeline-ready
+```
+
 ## Next after `RESULT: OK`
 
 Run the 26 golden vectors against board `5C63001367`, then the no-ADB acceptance

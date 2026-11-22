@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.36
-**Supersedes:** ADF-DEC-V1.35 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.37
+**Supersedes:** ADF-DEC-V1.36 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 22, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -73,6 +73,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C58 | Evidence capture fixed: `UvcCaptureSource.refresh()` discards `drain - 1` buffered frames before storing the newest one (`--drain`, default 3) because OpenCV `read()` returned pre-swipe frames and made all three screenshots byte-identical. The sequence now uses a three-step swipe pair with explicit waits. Live verification: frame-to-frame mean grey difference 67.3 and 61.1 on the two seats. | ch. 4A, ch. 8, C57 | settled |
 | C59 | Screenshot-debugging lessons recorded in `docs/HARDWARE_DIAGNOSTICS.md`: `DONE` is only "report sent", not "phone acted"; a V4L2 capture source is a buffer, not a snapshot; identical hashes prove stale capture; establish a known initial state; frame diff cannot decide pairing; never use `/dev/videoN` as identity; one V4L2 opener per node; compare hashes and mean grey difference, not a glance. | ch. 8, C58 | settled |
 | C60 | Correction to C58/C59: viewing the actual frames showed the evidence sequence is **home screen → app drawer → home screen**, not notification-shade open/close. The notification shade needs a top-edge swipe (y≈30→900) and was a separate live test. A large mean-grey diff only proves *something* changed; it does not identify the UI element. Code comments, runbook, memo and saved vocabulary corrected accordingly. | ch. 8, C58/C59 | settled |
+| C61 | Milestone tag `w2-pipeline-ready` records the verified state of the test stand: serial v1 adapter, coldplug-safe discovery, full diagnostics and evidence tooling, 495 green tests and a clean audit. `docs/HARDWARE_DIAGNOSTICS.md` documents the rollback commands (`git checkout w2-pipeline-ready`, then `git switch -c ...`). | ch. 4A, ch. 8 | settled |
 
 **Open items carried forward**
 
