@@ -203,6 +203,7 @@ def run(
     mapping: Mapping[str, str] | None = None,
     settle: float = 0.5,
     between: float = 0.5,
+    drain: int = 3,
 ) -> Path:
     from farm.adapters.udev import enumerate_capture_cards, enumerate_esp32
     from farm.adapters.uvc_cv2 import UvcCaptureSource
@@ -231,7 +232,7 @@ def run(
     for board, card in pairs:
         # One source stays open for the whole three-state sequence: the waits,
         # not camera re-initialisation, control when each frame is taken.
-        source = UvcCaptureSource(card["video_dev"])
+        source = UvcCaptureSource(card["video_dev"], drain=drain)
 
         def grab() -> Frame:
             source.refresh()
@@ -266,6 +267,7 @@ def main() -> int:
     parser.add_argument("--resolution", nargs=2, type=int, default=(494, 1019))
     parser.add_argument("--settle", type=float, default=0.5, help="wait after each swipe")
     parser.add_argument("--between", type=float, default=0.5, help="wait between states")
+    parser.add_argument("--drain", type=int, default=3, help="stale frames to discard per shot")
     parser.add_argument(
         "--map",
         action="append",
@@ -280,6 +282,7 @@ def main() -> int:
         parse_map(args.map) or None,
         settle=args.settle,
         between=args.between,
+        drain=args.drain,
     )
     print(f"evidence written to {root}")
     return 0

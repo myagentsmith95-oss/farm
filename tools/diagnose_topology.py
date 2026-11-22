@@ -249,6 +249,7 @@ def main() -> int:
     )
     parser.add_argument("--settle", type=float, default=0.5, help="wait after each swipe")
     parser.add_argument("--between", type=float, default=0.5, help="wait between states")
+    parser.add_argument("--drain", type=int, default=3, help="stale frames to discard per shot")
     parser.add_argument(
         "--map",
         action="append",
@@ -313,6 +314,7 @@ def main() -> int:
             mapping=parse_map(args.map) or None,
             settle=args.settle,
             between=args.between,
+            drain=args.drain,
         )
         print(f"\nevidence: {root}")
     print(f"\nRESULT: {'OK' if healthy else 'NOT READY'}")
