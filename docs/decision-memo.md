@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.20
-**Supersedes:** ADF-DEC-V1.19 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.21
+**Supersedes:** ADF-DEC-V1.20 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 22, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -55,6 +55,7 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C40 | Task 9: `mypy` strict mode is on and clean; dev dependencies have upper bounds, `actions/checkout` and `actions/setup-python` are SHA-pinned, and CI runs a Python 3.11 + 3.12 matrix with a 15-minute timeout. | ch. 4.3, ch. 8 | settled |
 | C41 | Task 10: README documents purpose, layout, setup, the five gates and the memo links; reviews v1/v3/v4 are committed as markdown summaries (PDFs stay local per `.gitignore`); `HANDOFF.md` is gone; `repo_audit.sh` EXPECTED covers every tracked path including the 14 `.gitkeep` markers, so drift is zero. No LICENSE file is committed by owner decision — the gap is recorded in O9. | ch. 4.3, F6 | settled (LICENSE gap recorded) |
 | C42 | CR-8/CR-7b (Task 11): `CaptureSource.latest(max_age_ms)` rejects negative values with `ValueError`; `latest(0)` still accepts a frame stamped at the current clock. `SimDevice.attach()` validates the entire role batch before attaching any, so a rejected batch leaves no queued event and no partial state. | ch. 4.1, ch. 4.2 | settled |
+| C43 | `SimDevice.attach()` also rejects a role repeated within one batch, so `attach([HID, HID])` raises before queuing anything. `FakeDeviceEventSource` consumes its preload list on the first `events()` call, so coldplug is never re-delivered; the finite fake may still be iterated again to drain later live events (the incremental `drain()` pattern). The contract and reusable suite document both rules. | ch. 4.1, C29 | settled |
 
 **Open items carried forward**
 
