@@ -80,6 +80,26 @@ Python implementation: `farm.adapters.esp32_serial` (`encode_command`, `decode_r
 `Esp32SerialBackend`). Tests drive a fake serial, so no hardware is needed. `perform()`
 blocks until `DONE`, as required by the InputBackend seam (N4). Only Tap and Swipe are
 supported until composite firmware lands; Key and Text raise `UnsupportedAction`.
+The adapter also runs the reusable `InputBackendContract` suite.
+
+Host-side hardening (all covered by tests):
+
+- The deadline for one command is `timeout_s + gesture duration` — a 10 s swipe must not
+  be declared failed while the board is still moving. A late reply would otherwise be
+  consumed by the next command and report a false success.
+- Swipe duration is validated host-side to 16..10000 ms, matching the firmware.
+- `handshake()` re-PINGs every 0.5 s until READY; one PING is not enough for a cold boot.
+- `sync_resolution(w, h)` updates the adapter's coordinate size, so rotation and re-crop
+  convert subsequent actions with the size the board was actually told about.
+- On a timeout the port is drained and `needs_rehandshake` is set; `perform()` then
+  refuses further work until `recover()` drains, re-handshakes and re-sends `RES` (the
+  firmware resets its coordinate space on restart). An unexpected `BOOT` does the same.
+- Inbound bytes are accumulated until LF, so a partial pyserial read cannot split a
+  `DONE` reply into fragments. A bare `ERR` is classified as an error, not ignored.
+
+The backend assumes a single caller; the supervisor must not drive one port from
+multiple threads. Normalized 1.0 maps to the crop size (one past the last pixel index),
+which the firmware clamps — harmless by design.
 
 ## 7. Planned hardening [designed — not in the base]
 

@@ -1,7 +1,7 @@
 # Android Device Farm: Final Decision Summary & Implementation Plan
 
-**Document:** DOC ADF-DEC-V1.23
-**Supersedes:** ADF-DEC-V1.22 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
+**Document:** DOC ADF-DEC-V1.24
+**Supersedes:** ADF-DEC-V1.23 (V1.0 is the Z.ai Engineering PDF snapshot, November 2026)
 **Revision date:** November 22, 2026
 **Status:** living baseline. Every change is a git commit with a reason.
 
@@ -59,6 +59,8 @@ Status tags used throughout: **[settled]** means decided and reflected in the re
 | C44 | CR-10 definition recovered and O17 closed as a recovery item: `SeatRegistry.apply()` constructs two `SeatState` models per seat per event to compare status and modes. Reclassified as a W9 performance item — derive the comparison from claim sets and build `SeatState` only on demand. Deferred deliberately. | ch. 4.2, O17 | settled (definition); work deferred to W9 |
 | C45 | Serial protocol v1 is specified in `protocol/serial_v1.md` from the proven touch-fw-2 firmware: UART0 bridge at 115200, LF-framed ASCII lines, lockstep `PING`/`RES`/`TAP`/`SWIPE`, error vocabulary, digitizer coordinate mapping, timing and the no-reset open sequence. `protocol/serial_vectors.json` holds 26 golden cases (boundaries, invalid inputs, boot banner) shared by Python and firmware. | ch. 4A, C7, arch §5–6 | settled (base); hardening designed |
 | C46 | First hardware-free adapter slice: `farm.adapters.esp32_serial` provides the encoder/reply decoder, `Esp32SerialBackend` (Tap/Swipe only, normalized→crop-pixel conversion, blocking `perform`, BOOT detection) and `open_esp32_no_reset` with lazy pyserial import. Tests use `farm.testing.FakeEsp32Serial`; no hardware needed. pyserial is now a declared runtime dependency. | ch. 4A, ch. 4.1, C7 | settled (base); no-ADB acceptance pending W2 hardware |
+| C47 | Serial hardening B/K/D/E: the per-command deadline includes gesture duration (a long swipe can take up to 10 s host-side); swipe ms is bounded 16..10000 in the host; `handshake()` re-PINGs every 0.5 s for cold boots; `sync_resolution()` updates the adapter's coordinate size; timeouts and `BOOT` drain the port and set `needs_rehandshake`, and `perform()` refuses work until `recover()` re-handshakes and re-sends `RES`. | ch. 4A, C46, arch §5 | settled |
+| C48 | Serial hardening C/F/G: inbound bytes are buffered until LF so partial reads cannot split a reply; a bare `ERR` is an error; `Esp32SerialBackend` runs the reusable `InputBackendContract` suite (C17) in addition to the vector tests. The single-caller assumption and the normalized 1.0→crop-size convention are documented. | ch. 4.1, C17, C46 | settled |
 
 **Open items carried forward**
 
