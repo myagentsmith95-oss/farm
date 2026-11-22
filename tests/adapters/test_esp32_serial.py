@@ -1,5 +1,7 @@
 """Serial protocol v1: golden vectors and the ESP32 adapter, without hardware."""
 import json
+import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -155,3 +157,42 @@ def test_open_sequence_preconfigures_then_opens_with_rts_first(monkeypatch):
     assert result is not None
     assert calls[0][0] == "preconfigure"
     assert calls[1] == ("open", "/dev/serial/by-id/x", 115200, 1)
+
+
+def test_pyserial_open_drops_rts_before_dtr_and_drains_stale_input(monkeypatch):
+    class FakeHandle:
+        port = baudrate = timeout = dsrdtr = None
+
+        def __init__(self):
+            self.order = []
+
+        @property
+        def rts(self):
+            return self._rts
+
+        @rts.setter
+        def rts(self, value):
+            self.order.append("rts")
+            self._rts = value
+
+        @property
+        def dtr(self):
+            return self._dtr
+
+        @dtr.setter
+        def dtr(self, value):
+            self.order.append("dtr")
+            self._dtr = value
+
+        def open(self):
+            self.order.append("open")
+
+        def reset_input_buffer(self):
+            self.order.append("drain")
+
+    handle = FakeHandle()
+    monkeypatch.setitem(sys.modules, "serial", types.SimpleNamespace(Serial=lambda: handle))
+    result = esp32_serial._open_pyserial("/dev/x", 115200, 1.0)
+    assert result is handle
+    assert handle.dsrdtr is False
+    assert handle.order == ["open", "rts", "dtr", "drain"]

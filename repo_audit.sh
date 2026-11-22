@@ -36,7 +36,7 @@ echo
 echo "== 2. Expected files (present and tracked)"
 EXPECTED="
 pyproject.toml .importlinter .gitignore README.md .github/workflows/ci.yml
-docs/decision-memo.md docs/ARCHITECTURE.md
+docs/decision-memo.md docs/ARCHITECTURE.md protocol/serial_v1.md protocol/serial_vectors.json
 src/farm/__init__.py src/farm/app.py
 src/farm/contracts/__init__.py src/farm/contracts/models.py src/farm/contracts/actions.py
 src/farm/contracts/frame.py src/farm/contracts/errors.py src/farm/contracts/input.py
@@ -45,10 +45,13 @@ src/farm/contracts/lease.py src/farm/contracts/event_log.py src/farm/contracts/s
 src/farm/testing/__init__.py src/farm/testing/clock.py src/farm/testing/input.py
 src/farm/testing/capture.py src/farm/testing/matching.py src/farm/testing/events.py
 src/farm/testing/lease.py src/farm/testing/event_log.py src/farm/testing/maa_stub.py src/farm/testing/sim_device.py
-src/farm/adapters/__init__.py src/farm/registry/__init__.py src/farm/registry/profiles.py src/farm/registry/seats.py src/farm/calibration/__init__.py
+src/farm/testing/fake_serial.py
+src/farm/adapters/__init__.py src/farm/adapters/esp32_serial.py
+src/farm/registry/__init__.py src/farm/registry/profiles.py src/farm/registry/seats.py src/farm/calibration/__init__.py
 src/farm/capture/__init__.py src/farm/control/__init__.py src/farm/runner/__init__.py
 src/farm/vision/__init__.py src/farm/console/__init__.py src/farm/console/views/__init__.py
-tests/__init__.py tests/contracts/__init__.py
+tests/__init__.py tests/contracts/__init__.py tests/adapters/__init__.py
+tests/adapters/test_esp32_serial.py
 tests/test_contracts_purity.py tests/d6_day5_dual_client_test.py tests/test_no_empty_placeholders.py
 tests/test_contract_suite_imports.py
 tests/properties/test_device_profile.py tests/properties/test_actions.py tests/properties/test_frame.py
