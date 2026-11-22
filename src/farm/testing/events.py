@@ -28,8 +28,11 @@ class FakeDeviceEventSource:
             self._queue.append(event)
 
     def events(self) -> Iterator[DeviceEvent]:
-        # One iteration per source: preloaded devices first, in order.
-        yield from self._preload
+        # Coldplug is delivered once: take the preload list on the first
+        # iteration. The finite fake can still be iterated again to drain
+        # live events pushed later (SimDevice's incremental drain pattern).
+        preload, self._preload = self._preload, []
+        yield from preload
         while self._queue:
             yield self._queue.popleft()
 
