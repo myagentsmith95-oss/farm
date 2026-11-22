@@ -119,6 +119,32 @@ def enumerate_capture_cards() -> tuple[CaptureDevice, ...]:
     return tuple(cards)
 
 
+def topology_snapshot() -> dict[str, list[str]]:
+    """Current stable identities, sorted so snapshots can be compared."""
+    return {
+        "esp32": sorted(device.by_id for device in enumerate_esp32()),
+        "cards": sorted(card.by_id for card in enumerate_capture_cards()),
+    }
+
+
+def diff_snapshots(
+    old: dict[str, list[str]], new: dict[str, list[str]]
+) -> dict[str, list[str]]:
+    """Report identities added or removed since the previous snapshot.
+
+    A card moved to another USB port gets a new by_id, so it appears as one
+    removal and one addition — exactly the replug case we must tolerate.
+    """
+    added: list[str] = []
+    removed: list[str] = []
+    for kind in ("esp32", "cards"):
+        before = set(old.get(kind, []))
+        after = set(new.get(kind, []))
+        added.extend(sorted(after - before))
+        removed.extend(sorted(before - after))
+    return {"added": added, "removed": removed, "changed": []}
+
+
 def _card_name(node: str) -> str:
     try:
         return Path(f"/sys/class/video4linux/{node}/name").read_text().strip()

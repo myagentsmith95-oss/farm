@@ -2,7 +2,12 @@
 import cv2
 import numpy as np
 
-from farm.adapters.uvc_cv2 import UvcCaptureSource, find_active_area, is_color_bars
+from farm.adapters.uvc_cv2 import (
+    UvcCaptureSource,
+    find_active_area,
+    is_color_bars,
+    stable_area,
+)
 
 
 def color_bar_frame():
@@ -22,6 +27,14 @@ def phone_frame():
 def test_finds_portrait_phone_inside_pillarboxes():
     frame = np.zeros((1080, 1920, 3), dtype=np.uint8)
     frame[0:1019, 713:1207] = 200
+    assert find_active_area(frame) == (713, 0, 1206, 1018)
+
+
+def test_dim_screen_is_detected_by_coverage_not_mean():
+    # Dim content (luma 30 covering 80% of the phone rect) has a column mean
+    # of 24, below the old bg+25 threshold, but clearly covers the area.
+    frame = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    frame[0:1019, 713:1207, :] = 30
     assert find_active_area(frame) == (713, 0, 1206, 1018)
 
 
@@ -49,6 +62,24 @@ def test_neutral_photo_is_not_no_signal():
     frame = np.full((36, 64, 3), 128, dtype=np.uint8)
     frame[10:20, 10:30] = 40
     assert is_color_bars(frame) is False
+
+
+def test_stable_area_picks_the_dominant_cluster():
+    jittery = [
+        (713, 10, 1205, 1059),
+        (746, 17, 1202, 1060),
+        (715, 12, 1204, 1058),
+        (743, 15, 1203, 1061),
+        (714, 11, 1205, 1060),
+    ]
+    area = stable_area(jittery)
+    assert area is not None
+    assert 713 <= area[0] <= 715
+    assert 1204 <= area[2] <= 1205
+
+
+def test_stable_area_needs_enough_good_samples():
+    assert stable_area([(713, 10, 1205, 1059), None]) is None
 
 
 def test_refresh_waits_for_hdmi_lock_after_color_bars():

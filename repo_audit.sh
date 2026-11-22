@@ -70,7 +70,7 @@ repo_audit.sh src/farm/testing/invariants.py
 docs/farm-code-review-v1.md docs/farm-code-review-v2.md docs/farm-code-review-v3.md docs/farm-code-review-v4.md
 adoption/.gitkeep firmware/esp32_seat/.gitkeep ops/systemd/.gitkeep probe/.gitkeep protocol/.gitkeep
 scenarios/.gitkeep services/maa_service/.gitkeep tests/hardware/.gitkeep tests/input/.gitkeep
-tests/integration/.gitkeep tests/properties/.gitkeep tests/soak/.gitkeep tests/unit/.gitkeep tools/.gitkeep tools/probe_esp32.py tools/probe_capture.py
+tests/integration/.gitkeep tests/properties/.gitkeep tests/soak/.gitkeep tests/unit/.gitkeep tools/.gitkeep tools/probe_esp32.py tools/probe_capture.py tools/diagnose_topology.py
 "
 MISSING=0
 for f in $EXPECTED; do
