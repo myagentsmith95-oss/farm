@@ -13,6 +13,7 @@ import argparse
 import json
 import re
 import sys
+import time
 from collections.abc import Callable, Mapping
 from datetime import datetime
 from pathlib import Path
@@ -148,6 +149,34 @@ def capture_frame(grab: Callable[[], Frame], target: Path) -> None:
     target.write_bytes(frame.data)
 
 
+def capture_sequence(
+    handle,
+    swipe: Callable[[object, int, int, int, int], bool],
+    grab: Callable[[], Frame],
+    folder: Path,
+    resolution: tuple[int, int] = (494, 1019),
+    settle: float = 0.5,
+    between: float = 0.5,
+    sleep: Callable[[float], None] = time.sleep,
+) -> None:
+    """One device, one open source: current → swipe → wait → state → wait → swipe → wait → state.
+
+    The waits are explicit so the screenshot timing does not depend on camera
+    re-initialisation. A fresh source per shot made most frames identical.
+    """
+    x = int(0.5 * resolution[0] + 0.5)
+    low = int(0.75 * resolution[1] + 0.5)
+    high = int(0.25 * resolution[1] + 0.5)
+    capture_frame(grab, folder / frame_filename("current"))
+    swipe(handle, x, low, high, 500)
+    sleep(settle)
+    capture_frame(grab, folder / frame_filename("swipe1"))
+    sleep(between)
+    swipe(handle, x, high, low, 500)
+    sleep(settle)
+    capture_frame(grab, folder / frame_filename("swipe2"))
+
+
 def prune_runs(base: Path, keep: int) -> None:
     runs = sorted((p for p in base.iterdir() if p.is_dir()), key=lambda p: p.name)
     for old in runs[:-keep] if keep > 0 else runs:
@@ -164,6 +193,8 @@ def run(
     keep: int = 5,
     resolution: tuple[int, int] = (494, 1019),
     mapping: Mapping[str, str] | None = None,
+    settle: float = 0.5,
+    between: float = 0.5,
 ) -> Path:
     from farm.adapters.udev import enumerate_capture_cards, enumerate_esp32
     from farm.adapters.uvc_cv2 import UvcCaptureSource
@@ -189,33 +220,32 @@ def run(
     root.mkdir(parents=True, exist_ok=True)
     write_manifest(root, boards, cards, mapping)
 
-    def snapshot(board: Mapping[str, str], card: Mapping[str, str], stage: str) -> None:
+    for board, card in pairs:
+        # One source stays open for the whole three-state sequence: the waits,
+        # not camera re-initialisation, control when each frame is taken.
         source = UvcCaptureSource(card["video_dev"])
+
+        def grab() -> Frame:
+            source.refresh()
+            return source.latest(1000)
+
         try:
             source.start()
-
-            def grab() -> Frame:
-                source.refresh()
-                return source.latest(1000)
-
-            folder = root / device_folder(board, card)
-            capture_frame(grab, folder / frame_filename(stage))
+            handle = open_board(board["port"])
+            try:
+                capture_sequence(
+                    handle,
+                    swipe_step,
+                    grab,
+                    root / device_folder(board, card),
+                    resolution=resolution,
+                    settle=settle,
+                    between=between,
+                )
+            finally:
+                handle.close()
         finally:
             source.close()
-
-    x = int(0.5 * resolution[0] + 0.5)
-    low = int(0.75 * resolution[1] + 0.5)
-    high = int(0.25 * resolution[1] + 0.5)
-    for board, card in pairs:
-        snapshot(board, card, "current")
-        handle = open_board(board["port"])
-        try:
-            swipe_step(handle, x, low, high)
-            snapshot(board, card, "swipe1")
-            swipe_step(handle, x, high, low)
-            snapshot(board, card, "swipe2")
-        finally:
-            handle.close()
     prune_runs(base, keep)
     return root
 
@@ -223,9 +253,11 @@ def run(
 def main() -> int:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--evidence", default="var/evidence", help="evidence root")
+    parser.add_argument("--evidence", default="evidence", help="evidence root")
     parser.add_argument("--keep", type=int, default=5)
     parser.add_argument("--resolution", nargs=2, type=int, default=(494, 1019))
+    parser.add_argument("--settle", type=float, default=0.5, help="wait after each swipe")
+    parser.add_argument("--between", type=float, default=0.5, help="wait between states")
     parser.add_argument(
         "--map",
         action="append",
@@ -238,6 +270,8 @@ def main() -> int:
         args.keep,
         tuple(args.resolution),
         parse_map(args.map) or None,
+        settle=args.settle,
+        between=args.between,
     )
     print(f"evidence written to {root}")
     return 0
