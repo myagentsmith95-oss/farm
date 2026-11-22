@@ -34,11 +34,52 @@ def classify_capture_problem(detail: str) -> str:
     return "ERROR"
 
 
-def force_reset(handle, wait_s: float = 8.0) -> tuple[bool, bool, int]:
-    """Deliberate recovery for a hung board: reset, watch BOOT, re-PING.
+def missing_expected(expected: dict, current: dict) -> list[str]:
+    """Known identities that disappeared — a vanished device is a failure."""
+    missing: list[str] = []
+    for kind in ("esp32", "cards"):
+        missing.extend(sorted(set(expected.get(kind, [])) - set(current.get(kind, []))))
+    return missing
+
+
+def classify_tap(line: str) -> str:
+    if line == "DONE":
+        return "DONE"
+    if line.startswith("ERR"):
+        return "ERR"
+    return "OTHER"
+
+
+def check_hid_attach(handle, width: int, height: int, wait_s: float = 5.0) -> bool:
+    """One harmless centre tap: DONE means the HID gadget reaches a phone."""
+    # Same half-up conversion as Esp32SerialBackend._to_pixels.
+    x = int(0.5 * width + 0.5)
+    y = int(0.5 * height + 0.5)
+    handle.write(f"TAP {x} {y}\n".encode("ascii"))
+    deadline = time.monotonic() + wait_s
+    while time.monotonic() < deadline:
+        raw = handle.readline()
+        if raw:
+            kind = classify_tap(raw.decode("utf-8", errors="ignore").strip())
+            if kind == "DONE":
+                return True
+            if kind == "ERR":
+                return False
+        else:
+            time.sleep(0.01)
+    return False
+
+
+def force_reset(
+    handle,
+    wait_s: float = 8.0,
+    resolution: tuple[int, int] | None = None,
+) -> tuple[bool, bool, int, bool]:
+    """Deliberate recovery: reset, watch BOOT, re-PING, re-send RES.
 
     This intentionally violates the no-reset-on-open rule — it is an explicit
-    recovery action, never part of normal session startup.
+    recovery action, never part of normal session startup. Without `resolution`
+    the caller must re-sync RES before any touch is injected.
     """
     handle.dtr = False
     handle.rts = True
@@ -47,14 +88,19 @@ def force_reset(handle, wait_s: float = 8.0) -> tuple[bool, bool, int]:
     handle.dtr = False
     boot = False
     ready = False
+    res_ok = False
+    res_sent = False
     pings = 0
     next_ping = 0.0
     deadline = time.monotonic() + wait_s
     while time.monotonic() < deadline:
-        if time.monotonic() >= next_ping:
+        if not ready and time.monotonic() >= next_ping:
             handle.write(b"PING\n")
             pings += 1
             next_ping = time.monotonic() + 0.5
+        if ready and resolution is not None and not res_sent:
+            handle.write(f"RES {resolution[0]} {resolution[1]}\n".encode("ascii"))
+            res_sent = True
         line = handle.readline()
         if line:
             text = line.decode("utf-8", errors="ignore").strip()
@@ -62,9 +108,11 @@ def force_reset(handle, wait_s: float = 8.0) -> tuple[bool, bool, int]:
                 boot = True
             if text == "READY":
                 ready = True
+            if text == "OK" and res_sent:
+                res_ok = True
         else:
             time.sleep(0.01)
-    return boot, ready, pings
+    return boot, ready, pings, res_ok
 
 
 def probe_board(port: str, seconds: float) -> tuple[bool, int]:
@@ -123,20 +171,30 @@ def probe_card(card, samples: int, interval: float, timeout: float) -> tuple[str
         source.close()
 
 
-def print_snapshot_change(path: str | None, current: dict) -> None:
+def print_snapshot_change(path: str | None, current: dict) -> bool:
+    """Report changes; False when a previously known device disappeared.
+
+    The baseline is not overwritten while something is missing, so the failure
+    stays visible until the operator fixes the hardware and acknowledges it.
+    """
     if not path:
-        return
+        return True
     target = Path(path)
     if not target.exists():
         target.write_text(json.dumps(current, indent=2) + "\n")
         print(f"\nwrote baseline snapshot to {path}")
-        return
+        return True
     previous = json.loads(target.read_text())
     change = diff_snapshots(previous, current)
+    missing = missing_expected(previous, current)
     print("\n== topology change since snapshot ==")
     print(f"  added:   {change['added'] or 'none'}")
     print(f"  removed: {change['removed'] or 'none'}")
+    print(f"  MISSING: {missing or 'none'}")
+    if missing:
+        return False
     target.write_text(json.dumps(current, indent=2) + "\n")
+    return True
 
 
 def main() -> int:
@@ -151,7 +209,20 @@ def main() -> int:
         action="store_true",
         help="deliberately reset boards that do not answer PING (never on normal open)",
     )
+    parser.add_argument(
+        "--resolution",
+        nargs=2,
+        type=int,
+        metavar=("W", "H"),
+        help="crop size to re-send as RES after recovery and for the HID check",
+    )
+    parser.add_argument(
+        "--check-hid",
+        action="store_true",
+        help="send one centre TAP per READY board to prove the HID gadget reaches a phone",
+    )
     args = parser.parse_args()
+    resolution = tuple(args.resolution) if args.resolution else None
 
     boards = enumerate_esp32()
     cards = enumerate_capture_cards()
@@ -164,17 +235,31 @@ def main() -> int:
         if not ready and args.recover:
             handle = pyserial.Serial(board.port, 115200, timeout=0.2, dsrdtr=False)
             try:
-                boot, recovered, pings = force_reset(handle)
+                boot, recovered, pings, res_ok = force_reset(handle, resolution=resolution)
             finally:
                 handle.close()
-            status = "RECOVERED" if recovered else "STILL_NO_READY"
+            if recovered and resolution is not None and not res_ok:
+                status = "RES_FAILED"
+            else:
+                status = "RECOVERED" if recovered else "STILL_NO_READY"
             print(f"\nESP32 {board.serial}  by_id={board.by_id}")
-            print(f"  recovery: BOOT={boot}, PINGs={pings}, status={status}")
-            healthy = healthy and recovered
+            print(
+                f"  recovery: BOOT={boot}, PINGs={pings}, RES={res_ok}, status={status}"
+            )
+            healthy = healthy and status == "RECOVERED"
             continue
         healthy = healthy and ready
         print(f"\nESP32 {board.serial}  by_id={board.by_id}")
         print(f"  status: {status}, BOOT banners in window: {boots}")
+        if ready and args.check_hid:
+            width, height = resolution or (720, 1480)
+            handle = pyserial.Serial(board.port, 115200, timeout=0.2, dsrdtr=False)
+            try:
+                attached = check_hid_attach(handle, width, height)
+            finally:
+                handle.close()
+            print(f"  HID attach: {'DONE' if attached else 'FAILED (usb send failed?)'}")
+            healthy = healthy and attached
 
     for card in cards:
         state, area, detail = probe_card(card, args.samples, args.interval, args.signal_timeout)
@@ -182,7 +267,8 @@ def main() -> int:
         print(f"\nCARD {card.video_dev}  by_id={card.by_id}")
         print(f"  state: {state}, crop: {area}, detail: {detail or 'ok'}")
 
-    print_snapshot_change(args.snapshot, topology_snapshot())
+    topology_ok = print_snapshot_change(args.snapshot, topology_snapshot())
+    healthy = healthy and topology_ok
     print(f"\nRESULT: {'OK' if healthy else 'NOT READY'}")
     return 0 if healthy else 1
 

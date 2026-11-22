@@ -12,8 +12,11 @@ cd /home/agent-smith/Documents/farm && .venv/bin/python tools/diagnose_topology.
 # Same, with a baseline snapshot (created on first run, compared on later runs).
 cd /home/agent-smith/Documents/farm && .venv/bin/python tools/diagnose_topology.py --snapshot /tmp/topology.json
 
-# Deliberately reset any board that does not answer PING, then re-handshake.
-cd /home/agent-smith/Documents/farm && .venv/bin/python tools/diagnose_topology.py --recover
+# Deliberately reset any board that does not answer PING, then re-PING and re-send RES.
+cd /home/agent-smith/Documents/farm && .venv/bin/python tools/diagnose_topology.py --recover --resolution 494 1019
+
+# Prove both boards' HID gadgets actually reach a phone (one centre TAP each).
+cd /home/agent-smith/Documents/farm && .venv/bin/python tools/diagnose_topology.py --check-hid --resolution 494 1019
 
 # Live HDMI preview, one card at a time.
 ffplay -f v4l2 -input_format mjpeg -video_size 1920x1080 -i /dev/video0
@@ -31,7 +34,13 @@ cd /home/agent-smith/Documents/farm && .venv/bin/python tools/probe_capture.py
 ```
 
 `diagnose_topology.py` exits 0 only when every discovered board answers READY and
-every discovered card has a stable active-area crop.
+every discovered card has a stable active-area crop. With `--snapshot`, a previously
+known device that disappears makes it exit 1; the baseline is not overwritten while
+something is missing, so the failure stays visible until acknowledged. `--check-hid`
+is opt-in because it injects one harmless centre TAP per board; `DONE` means the HID
+gadget reaches a phone, `ERR usb send failed` means it does not. `--recover` resets a
+hung board and re-sends `RES` when `--resolution` is supplied — without it the caller
+must re-sync the coordinate space before injecting touch.
 
 ## Symptom → cause → fix
 
