@@ -2,6 +2,7 @@
 __pycache__/
 *.egg-info/
 var/
+evidence/
 
 # Local analysis snapshots, not part of the repository
 docs/*.pdf
