@@ -7,7 +7,7 @@ and `latest()` only judges freshness of the stored frame (never waits).
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, cast
 
 import cv2
 import numpy as np
@@ -45,14 +45,45 @@ def find_active_area(frame: Any) -> tuple[int, int, int, int] | None:
     ]
     background = min(int(np.median(corner)) for corner in corners)
     threshold = background + 25
-    columns = np.where(gray.mean(axis=0) > threshold)[0]
+    # Coverage, not mean luma: a dim screen with sparse bright content still
+    # covers the panel, while a mean-based test loses the edges.
+    mask = gray > threshold
+    column_coverage = mask.sum(axis=0) / height
+    columns = np.where(column_coverage >= 0.25)[0]
     if len(columns) == 0 or len(columns) > 0.6 * width:
         return None
     x0, x1 = int(columns[0]), int(columns[-1])
-    rows = np.where(gray[:, x0 : x1 + 1].mean(axis=1) > threshold)[0]
+    row_coverage = mask[:, x0 : x1 + 1].sum(axis=1) / (x1 - x0 + 1)
+    rows = np.where(row_coverage >= 0.25)[0]
     if len(rows) == 0:
         return None
     return (x0, int(rows[0]), x1, int(rows[-1]))
+
+
+def stable_area(
+    areas: list[tuple[int, int, int, int] | None],
+    tolerance: int = 8,
+    min_samples: int = 3,
+) -> tuple[int, int, int, int] | None:
+    """Pick the dominant crop from jittery samples; None if inconclusive."""
+    good = [area for area in areas if area is not None]
+    if len(good) < min_samples:
+        return None
+    clusters: list[list[tuple[int, int, int, int]]] = []
+    for area in good:
+        for cluster in clusters:
+            if all(abs(area[i] - cluster[0][i]) <= tolerance for i in range(4)):
+                cluster.append(area)
+                break
+        else:
+            clusters.append([area])
+    best = max(clusters, key=len)
+    if len(best) < 2:
+        return None
+    return cast(
+        tuple[int, int, int, int],
+        tuple(int(np.median([area[i] for area in best])) for i in range(4)),
+    )
 
 
 class UvcCaptureSource:
