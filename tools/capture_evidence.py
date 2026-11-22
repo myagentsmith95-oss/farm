@@ -159,20 +159,28 @@ def capture_sequence(
     between: float = 0.5,
     sleep: Callable[[float], None] = time.sleep,
 ) -> None:
-    """One device, one open source: current → swipe → wait → state → wait → swipe → wait → state.
+    """Close → open → close the Android notification shade, one source per device.
 
-    The waits are explicit so the screenshot timing does not depend on camera
-    re-initialisation. A fresh source per shot made most frames identical.
+    A swipe down from the top edge opens the notification shade; a swipe up
+    closes it. The first action is a close so the "current" frame always has
+    the shade closed — otherwise three identical open-shade frames are saved.
+    Waits are explicit; they do not depend on camera re-initialisation.
     """
     x = int(0.5 * resolution[0] + 0.5)
     low = int(0.75 * resolution[1] + 0.5)
     high = int(0.25 * resolution[1] + 0.5)
-    capture_frame(grab, folder / frame_filename("current"))
+    # Close any shade left open from a previous run.
     swipe(handle, x, low, high, 500)
+    sleep(settle)
+    capture_frame(grab, folder / frame_filename("current"))
+    sleep(between)
+    # Swipe down from the top edge: open the notification shade.
+    swipe(handle, x, high, low, 500)
     sleep(settle)
     capture_frame(grab, folder / frame_filename("swipe1"))
     sleep(between)
-    swipe(handle, x, high, low, 500)
+    # Swipe up: close the shade again.
+    swipe(handle, x, low, high, 500)
     sleep(settle)
     capture_frame(grab, folder / frame_filename("swipe2"))
 
