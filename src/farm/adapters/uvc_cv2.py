@@ -19,6 +19,8 @@ _WIDTH = 1920
 _HEIGHT = 1080
 _SETTLE_S = 2.0
 _WARMUP = 15
+_SIGNAL_TIMEOUT_S = 20.0
+_RETRY_INTERVAL_S = 0.5
 
 
 def is_color_bars(frame: Any) -> bool:
@@ -63,10 +65,14 @@ class UvcCaptureSource:
         video_dev: str,
         settle_s: float = _SETTLE_S,
         warmup: int = _WARMUP,
+        signal_timeout_s: float = _SIGNAL_TIMEOUT_S,
+        retry_interval_s: float = _RETRY_INTERVAL_S,
     ) -> None:
         self.video_dev = video_dev
         self._settle_s = settle_s
         self._warmup = warmup
+        self.signal_timeout_s = signal_timeout_s
+        self.retry_interval_s = retry_interval_s
         self._cap: Any = None
         self._latest: Frame | None = None
         self._started = False
@@ -91,17 +97,32 @@ class UvcCaptureSource:
         self._started = True
 
     def refresh(self) -> Frame:
-        """Grab one frame, crop to the active area and store it as the latest."""
+        """Wait for a live phone image, crop to the active area, store it.
+
+        The card can show color bars for several seconds after HDMI is plugged
+        in before it locks; retry rather than failing on the first bad frame.
+        """
         if self._closed or not self._started:
             raise CaptureError("source is not running")
-        ok, frame = self._cap.read()
-        if not ok or frame is None:
-            raise CaptureError("capture read failed")
-        if is_color_bars(frame):
-            raise StaleFrame("no HDMI signal")
-        area = find_active_area(frame)
-        if area is None:
-            raise StaleFrame("no active area")
+        deadline = time.monotonic() + self.signal_timeout_s
+        reason = "no HDMI signal"
+        while True:
+            ok, frame = self._cap.read()
+            if not ok or frame is None:
+                raise CaptureError("capture read failed")
+            if is_color_bars(frame):
+                reason = "no HDMI signal"
+            else:
+                area = find_active_area(frame)
+                if area is None:
+                    reason = "no active area"
+                else:
+                    return self._store(frame, area)
+            if time.monotonic() >= deadline:
+                raise StaleFrame(reason)
+            time.sleep(self.retry_interval_s)
+
+    def _store(self, frame: Any, area: tuple[int, int, int, int]) -> Frame:
         x0, y0, x1, y1 = area
         self.area = area
         crop = frame[y0 : y1 + 1, x0 : x1 + 1]
