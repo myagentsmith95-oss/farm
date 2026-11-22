@@ -7,8 +7,10 @@ close() is idempotent and seals the feed: devices marked already present by
 preload() are delivered as ATTACHED events when iteration begins, before
 any live event even if the live event was fed first; preload order is stable.
 Events buffered before close are still delivered; push/preload after close
-are ignored. A real udev adapter blocks while the source is open and must
-still drain buffered events before ending.
+are ignored; coldplug is delivered on the first iteration only, while a finite
+source may be iterated again to drain later live events. A real udev adapter
+blocks while the source is open and must still drain buffered events before
+ending.
 """
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -94,10 +96,13 @@ class EventSourceContract:
         rig.feed(detached)
         assert list(rig.source.events()) == [attached, detached]
 
-    def test_source_is_iterated_once(self, rig):
-        rig.preload(make_event("usb-a", DeviceEventKind.ATTACHED, 1))
-        assert list(rig.source.events())
-        assert list(rig.source.events()) == []
+    def test_coldplug_is_not_redelivered_on_a_later_iteration(self, rig):
+        present = make_event("usb-a", DeviceEventKind.ATTACHED, 1)
+        rig.preload(present)
+        assert list(rig.source.events()) == [present]
+        live = make_event("usb-b", DeviceEventKind.ATTACHED, 2)
+        rig.feed(live)
+        assert list(rig.source.events()) == [live]
 
     def test_close_is_idempotent(self, rig):
         rig.source.close()

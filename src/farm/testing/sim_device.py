@@ -47,7 +47,11 @@ class SimDevice:
         selected = list(roles) if roles is not None else list(self.spec.devices)
         # Validate the whole batch first: a rejected attach must not leave a
         # partial claim or an event on the feed (CR-7b).
+        seen: set[DeviceRole] = set()
         for role in selected:
+            if role in seen:
+                raise ValueError(f"{role.value} appears twice in one batch")
+            seen.add(role)
             if role not in self.spec.devices:
                 raise KeyError(role)
             if role in self._attached:
