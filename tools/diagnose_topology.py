@@ -9,6 +9,8 @@ import json
 import time
 from pathlib import Path
 
+import serial as pyserial
+
 from farm.adapters.esp32_serial import open_esp32_no_reset
 from farm.adapters.udev import (
     diff_snapshots,
@@ -18,6 +20,51 @@ from farm.adapters.udev import (
 )
 from farm.adapters.uvc_cv2 import UvcCaptureSource, stable_area
 from farm.contracts.errors import StaleFrame
+
+
+def classify_capture_problem(detail: str) -> str:
+    """Map a capture failure to the action that actually fixes it."""
+    lowered = detail.lower()
+    if "cannot open" in lowered or "busy" in lowered:
+        return "BUSY"
+    if "no hdmi signal" in lowered:
+        return "NO_SIGNAL"
+    if "no active area" in lowered:
+        return "BLACK"
+    return "ERROR"
+
+
+def force_reset(handle, wait_s: float = 8.0) -> tuple[bool, bool, int]:
+    """Deliberate recovery for a hung board: reset, watch BOOT, re-PING.
+
+    This intentionally violates the no-reset-on-open rule — it is an explicit
+    recovery action, never part of normal session startup.
+    """
+    handle.dtr = False
+    handle.rts = True
+    time.sleep(0.2)
+    handle.rts = False
+    handle.dtr = False
+    boot = False
+    ready = False
+    pings = 0
+    next_ping = 0.0
+    deadline = time.monotonic() + wait_s
+    while time.monotonic() < deadline:
+        if time.monotonic() >= next_ping:
+            handle.write(b"PING\n")
+            pings += 1
+            next_ping = time.monotonic() + 0.5
+        line = handle.readline()
+        if line:
+            text = line.decode("utf-8", errors="ignore").strip()
+            if text.startswith("BOOT "):
+                boot = True
+            if text == "READY":
+                ready = True
+        else:
+            time.sleep(0.01)
+    return boot, ready, pings
 
 
 def probe_board(port: str, seconds: float) -> tuple[bool, int]:
@@ -67,7 +114,11 @@ def probe_card(card, samples: int, interval: float, timeout: float) -> tuple[str
         reason = str(exc)
         return ("NO_SIGNAL" if "HDMI" in reason else "BLACK"), None, reason
     except Exception as exc:  # diagnostic tool: report, do not crash
-        return "ERROR", None, f"{type(exc).__name__}: {exc}"
+        detail = f"{type(exc).__name__}: {exc}"
+        problem = classify_capture_problem(detail)
+        if problem == "BUSY":
+            detail += " (close ffplay/other probes holding this card, then retry)"
+        return problem, None, detail
     finally:
         source.close()
 
@@ -95,6 +146,11 @@ def main() -> int:
     parser.add_argument("--interval", type=float, default=0.2)
     parser.add_argument("--signal-timeout", type=float, default=8.0)
     parser.add_argument("--board-seconds", type=float, default=1.0)
+    parser.add_argument(
+        "--recover",
+        action="store_true",
+        help="deliberately reset boards that do not answer PING (never on normal open)",
+    )
     args = parser.parse_args()
 
     boards = enumerate_esp32()
@@ -105,6 +161,17 @@ def main() -> int:
     for board in boards:
         ready, boots = probe_board(board.port, args.board_seconds)
         status = "READY" if ready else "NO_READY"
+        if not ready and args.recover:
+            handle = pyserial.Serial(board.port, 115200, timeout=0.2, dsrdtr=False)
+            try:
+                boot, recovered, pings = force_reset(handle)
+            finally:
+                handle.close()
+            status = "RECOVERED" if recovered else "STILL_NO_READY"
+            print(f"\nESP32 {board.serial}  by_id={board.by_id}")
+            print(f"  recovery: BOOT={boot}, PINGs={pings}, status={status}")
+            healthy = healthy and recovered
+            continue
         healthy = healthy and ready
         print(f"\nESP32 {board.serial}  by_id={board.by_id}")
         print(f"  status: {status}, BOOT banners in window: {boots}")
