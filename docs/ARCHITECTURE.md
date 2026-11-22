@@ -1,8 +1,11 @@
 # Android Device Farm — Project Documentation
 
-**Version:** 1.0 · November 22, 2026
-**Baselines:** farm repo @ `43be1a6` (memo V1.11, 352 tests green) ·
+**Version:** 1.1 · November 22, 2026
+**Baselines:** farm repo @ `517f207` (memo V1.20, 388 tests green) ·
 experiments repo `stop-esp32-s3-to-reboot` @ `c29950e` (working hardware proof)
+**Status as of:** 22 November 2026 — fix tasks 1–12 are complete (PRs #14–#25,
+memo C25–C42). The hardware facts in §§3–8 remain the source of truth and were
+not changed by this status refresh; the live change log is in `decision-memo.md`.
 **Status labels used everywhere:** [proven] = runs on real hardware in experiments ·
 [built] = implemented and CI-tested in the farm repo · [designed] = specified, not built ·
 [unverified] = needs a hardware or measurement check.
@@ -338,12 +341,12 @@ Enrollment example (real identifiers from the experiments):
 ```
 seat-01: modes [hid]
   hid_board:    by_id = usb-1a86_USB_Single_Serial_5C63002523-if00
-  capture_card: by_path = <host USB port>   # cards without serial; synthesis rule open (§14)
+  capture_card: by_path = <host USB port>   # cards without serial; by_id synthesis decided in §14 / memo C32
 ```
 
 ### 9.4 Testing & process [built]
 
-352 tests: property tests (hypothesis) pin model invariants; reusable contract suites per
+388 tests: property tests (hypothesis) pin model invariants; reusable contract suites per
 seam with anti-vacuity guards; SimDevice drives the production registry through attach/
 detach/coldplug in CI; dual-client test proves the farm seams and a Maa-shaped controller
 speak the same verbs (shape only — see §12). CI: ruff, mypy, lint-imports, pytest.
@@ -371,7 +374,7 @@ green fix → memo row + audit update.
 
 | Component | State |
 |---|---|
-| Contracts, registry, fakes, suites, gates | **[built]** 352 tests green @ 43be1a6 |
+| Contracts, registry, fakes, suites, gates | **[built]** 388 tests green @ 517f207 (memo V1.20) |
 | Digitizer firmware (TAP/SWIPE, 2-finger descriptor) | **[proven]** one phone, screenshots saved |
 | HDMI capture + active-area + RES alignment | **[proven]** one phone |
 | No-reset serial discipline | **[proven]** |
@@ -380,34 +383,34 @@ green fix → memo row + audit update.
 | Runner, vision, console, calibration core | [designed] |
 | No-ADB phone acceptance, rotation, 50-seat scale, latency budget | [unverified] |
 
-### 11.2 Verified defects (audited at 43be1a6, all reproduced)
+### 11.2 Verified defects — all closed
 
-Two W2 blockers: **CR-1** `apply()` emits no SeatChange when only `ready_modes` changes
-(the scheduler's signal is lost); **CR-2** enrollment accepts a board-only HID seat that
-reaches READY with zero usable modes (two rulebooks disagree).
-Plus: CR-3 id-only detach over-releases claims; CR-4 `is_valid` after renew unpinned;
-CR-5 coldplug suite vacuous for the fake, post-close push delivered; CR-6 shallow-frozen
-models (mutable list/dict, shared event data, registry aliases caller's table); CR-9 suite
-imports not reusable; N3/N4 free-form keys, no perform-completion clause; F5 CI/mypy
-hardening; F6 hygiene (no LICENSE, 2-command README, stale HANDOFF, 18-path EXPECTED
-drift); CR-8/CR-7b negative max_age, non-atomic SimDevice attach.
+Every defect below was reproduced at 43be1a6 and has since been fixed.
 
-### 11.3 Execution order (from the audit verdict)
+| Finding | Disposition |
+|---|---|
+| CR-1 no `SeatChange` on a `ready_modes` transition | PR #18 (memo C33) |
+| CR-2 board-only HID enrollment | PR #17 (memo C31) |
+| CR-3 id-only detach over-releases claims | PR #17 (memo C32) |
+| CR-4 `is_valid` after renew unpinned | PR #23 (memo C38) |
+| CR-5 vacuous coldplug suite / post-close push | PR #22 (memo C37) |
+| CR-6 shallow-frozen models | PR #24 (memo C39) |
+| CR-9 suite imports not reusable | PR #19 (memo C34) |
+| N3/N4 free-form keys, no completion clause | PR #20 (memo C35) |
+| F5 CI / mypy hardening | PR #25 (memo C40) |
+| F6 hygiene | PR #25 (memo C41) |
+| CR-8 / CR-7b negative `max_age`, non-atomic attach | PR #25 (memo C42) |
 
-1. **Tasks 1+2 together** (one memo bump, V1.12) — before any scheduler code.
-   New SeatChange fields need defaults; validator: status **or** modes differ.
-2. **Task 7** suite imports — before any new suite test.
-3. **Task 8** KeyCode (§4.4 set) + perform completion clause.
-4. **Tasks 5, 4, 6** contract hardening — before the pyudev adapter lands.
-   Task 5: real preload mechanics; close-seal must keep pre-close drain; anti-vacuity check.
-   Task 6: tuples + deep copies; leave the devices dict unfrozen for now.
-5. **Task 3** detach ambiguity — decide the by_id synthesis rule first. Boundary:
-   single match → release; multi-match with distinguishing fields → release only the exact
-   match; multi-match with fields missing → release nothing, stay CONFLICT. Keep C27 green.
-6. **Tasks 9, 10, 11** hygiene sweep.
-Plus: **Task 12** correct the memo's modality/calibration/D3 text (this document is the
-source); **Task 13** composite firmware + vectors + W2 acceptance.
-Effort: ~2–3 working days for tasks 1–11. Already fixed, do not redo: C25–C29.
+### 11.3 Execution order — completed
+
+The audit order was executed as: tasks 1+2 (PRs #17/#18, memo V1.12/V1.13) → task 7
+(#19) → task 8 (#20) → tasks 5, 4, 6 (#22/#23/#24) → task 3 (#17) → tasks 9, 10, 11
+(#25) → task 12 (#21, memo V1.16). The baseline at the top of this document records the
+final green state.
+
+Still open: **Task 13** (composite firmware + golden vectors + W2 acceptance, memo O8),
+the design items O10–O16, and the LICENSE decision O9. CR-10 is now defined and
+deferred to W9 as a performance item — see the memo's open items.
 
 ## 12. Corrections to earlier documentation
 
@@ -437,8 +440,8 @@ Effort: ~2–3 working days for tasks 1–11. Already fixed, do not redo: C25–
 
 | Item | Status |
 |---|---|
-| LICENSE for both repos | **undecided** |
-| by_id synthesis rule for serial-less capture cards | decide before the pyudev adapter (task 3 input) |
+| LICENSE for both repos | No LICENSE file by owner decision (22 Nov 2026); tracked as memo O9. |
+| by_id synthesis rule for serial-less capture cards | Decided in memo C32: synthesized `vendor:product` + USB port path, owned by the udev adapter. |
 | Nav-bar/gesture macro coordinates per phone model | enroll during W2 acceptance |
 | Rotation / landscape crop handling | [unverified] per phone |
 | No-ADB phone acceptance (R1) | pending hardware; tap+swipe already proven on one phone |
@@ -451,7 +454,7 @@ Effort: ~2–3 working days for tasks 1–11. Already fixed, do not redo: C25–
 
 ## 15. Updated roadmap & acceptance
 
-**Now:** work fix tasks 1–11 in the audit order (§11.3). Land task 12 (memo corrections).
+**Now:** fix tasks 1–12 are complete (§11.3). Next is task 13 / W2 hardware work.
 **W2:** port the experiments into farm adapters behind the seams (`esp32_serial.py` with
 the no-reset open + BOOT monitoring; `uvc_cv2.py` with MJPG + no-signal + active-area;
 `udev.py` with coldplug enumeration). Extend firmware: composite keyboard + consumer
