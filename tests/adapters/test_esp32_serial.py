@@ -54,6 +54,17 @@ class ResponsiveSerial(FakeEsp32Serial):
         return result
 
 
+class RebootingSerial(FakeEsp32Serial):
+    def write(self, data: bytes) -> int:
+        result = super().write(data)
+        if data == b"PING\n":
+            self.feed("BOOT touch-fw-2")
+            self.feed("READY")
+        elif data.startswith(b"RES "):
+            self.feed("OK")
+        return result
+
+
 class DelayedDoneSerial(FakeEsp32Serial):
     def __init__(self, delay_s: float) -> None:
         super().__init__()
@@ -278,6 +289,14 @@ def test_handshake_repings_until_ready():
     backend = Esp32SerialBackend(serial, 494, 1019, timeout_s=1.5)
     backend.handshake()
     assert serial.pings == 3
+
+
+def test_handshake_after_boot_restores_the_coordinate_space():
+    serial = RebootingSerial()
+    backend = Esp32SerialBackend(serial, 494, 1019, timeout_s=0.2)
+    backend.handshake()
+    assert backend.needs_rehandshake is False
+    assert serial.sent == [b"PING\n", b"RES 494 1019\n"]
 
 
 def test_long_swipe_gets_an_extended_deadline():
