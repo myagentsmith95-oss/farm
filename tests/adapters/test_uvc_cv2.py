@@ -1,6 +1,7 @@
 """Capture image helpers, tested with synthetic frames — no camera needed."""
 import cv2
 import numpy as np
+import pytest
 
 from farm.adapters.uvc_cv2 import (
     UvcCaptureSource,
@@ -101,6 +102,41 @@ def test_refresh_waits_for_hdmi_lock_after_color_bars():
     frame = source.refresh()
     assert frame.width == 494 and frame.height == 1019
     assert source.area == (713, 0, 1206, 1018)
+
+
+def phone_frame_at(x0, y0, x1, y1):
+    frame = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    frame[y0 : y1 + 1, x0 : x1 + 1] = 200
+    return frame
+
+
+def test_refresh_discards_stale_buffered_frames():
+    class FakeCap:
+        def __init__(self, frames):
+            self.frames = frames
+            self.index = 0
+
+        def read(self):
+            frame = self.frames[min(self.index, len(self.frames) - 1)]
+            self.index += 1
+            return True, frame
+
+    cap = FakeCap(
+        [phone_frame_at(713, 0, 1206, 1018), phone_frame_at(600, 50, 1000, 900)]
+    )
+    source = UvcCaptureSource(
+        "/dev/fake", drain=2, signal_timeout_s=0.2, retry_interval_s=0.01
+    )
+    source._cap = cap
+    source._started = True
+    source.refresh()
+    assert source.area == (600, 50, 1000, 900)
+    assert cap.index == 2
+
+
+def test_refresh_rejects_a_zero_drain():
+    with pytest.raises(ValueError):
+        UvcCaptureSource("/dev/fake", drain=0)
 
 
 def test_refresh_times_out_when_signal_never_appears():

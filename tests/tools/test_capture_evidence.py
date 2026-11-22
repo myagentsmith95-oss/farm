@@ -6,6 +6,7 @@ import pytest
 from farm.contracts.frame import Frame, FrameSource
 from tools.capture_evidence import (
     capture_frame,
+    capture_sequence,
     device_folder,
     frame_filename,
     match_card,
@@ -88,6 +89,40 @@ def test_capture_frame_writes_the_frame_bytes(tmp_path):
     target = tmp_path / frame_filename("current")
     capture_frame(lambda: frame, target)
     assert target.read_bytes() == b"jpeg"
+
+
+def test_capture_sequence_waits_between_every_step(tmp_path):
+    sleeps: list[float] = []
+    swipes: list[tuple[int, int]] = []
+    frames: list[str] = []
+
+    def swipe(handle, x, y1, y2, ms):
+        swipes.append((y1, y2))
+        return True
+
+    def grab():
+        frames.append("grab")
+        return Frame(width=2, height=2, captured_ns=1, source=FrameSource.UVC, data=b"jpeg")
+
+    capture_sequence(
+        object(),
+        swipe,
+        grab,
+        tmp_path,
+        resolution=(494, 1019),
+        settle=0.3,
+        between=0.4,
+        sleep=sleeps.append,
+    )
+    # close the notification shade first, then open it, then close it again
+    assert sleeps == [0.3, 0.4, 0.3, 0.4, 0.3]
+    assert swipes == [(764, 255), (255, 764), (764, 255)]
+    assert sorted(p.name for p in tmp_path.iterdir()) == [
+        "01-current.jpg",
+        "02-after-swipe-1.jpg",
+        "03-after-swipe-2.jpg",
+    ]
+    assert frames == ["grab", "grab", "grab"]
 
 
 def test_prune_runs_keeps_only_newest(tmp_path):
