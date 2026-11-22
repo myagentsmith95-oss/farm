@@ -94,6 +94,11 @@ class EventSourceContract:
         rig.feed(detached)
         assert list(rig.source.events()) == [attached, detached]
 
+    def test_source_is_iterated_once(self, rig):
+        rig.preload(make_event("usb-a", DeviceEventKind.ATTACHED, 1))
+        assert list(rig.source.events())
+        assert list(rig.source.events()) == []
+
     def test_close_is_idempotent(self, rig):
         rig.source.close()
         rig.source.close()

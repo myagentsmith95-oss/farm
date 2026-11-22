@@ -175,6 +175,13 @@ def test_attach_twice_is_rejected():
         sim.attach([HID])
 
 
+def test_duplicate_role_in_one_batch_is_rejected():
+    sim = SimDevice(standard())
+    with pytest.raises(ValueError):
+        sim.attach([HID, HID])
+    assert list(sim.source.events()) == []
+
+
 def test_failed_attach_is_atomic():
     # CR-7b: validate every role before attaching any, so a rejected batch
     # leaves neither queued events nor partial state behind.
