@@ -68,12 +68,26 @@ def test_classify_tap():
     assert classify_tap("") == "OTHER"
 
 
-def test_hid_attach_check_uses_center_tap():
-    serial = FakeSerial([b"DONE\n"])
-    assert check_hid_attach(serial, 494, 1019, wait_s=0.1) is True
-    assert b"TAP 247 510\n" in serial.written
+def test_hid_attach_check_swipes_up_then_down():
+    serial = FakeSerial([b"DONE\n", b"DONE\n"])
+    assert check_hid_attach(serial, 494, 1019, wait_s=0.2) is True
+    up, down = serial.written
+    assert up.decode().startswith("SWIPE 247 ")
+    assert down.decode().startswith("SWIPE 247 ")
+    # up goes from the lower part of the screen to the upper part; down reverses
+    y_up1, y_up2 = int(up.decode().split()[2]), int(up.decode().split()[4])
+    y_down1, y_down2 = int(down.decode().split()[2]), int(down.decode().split()[4])
+    assert y_up1 > y_up2
+    assert y_down1 < y_down2
 
 
-def test_hid_attach_check_reports_missing_gadget():
+def test_hid_attach_check_reports_missing_gadget_on_first_swipe():
     serial = FakeSerial([b"ERR usb send failed\n"])
-    assert check_hid_attach(serial, 494, 1019, wait_s=0.1) is False
+    assert check_hid_attach(serial, 494, 1019, wait_s=0.2) is False
+    assert len(serial.written) == 1
+
+
+def test_hid_attach_check_reports_missing_gadget_on_second_swipe():
+    serial = FakeSerial([b"DONE\n", b"ERR usb send failed\n"])
+    assert check_hid_attach(serial, 494, 1019, wait_s=0.2) is False
+    assert len(serial.written) == 2
