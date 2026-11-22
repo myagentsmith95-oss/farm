@@ -189,7 +189,7 @@ The git tag `w2-pipeline-ready` marks this verified state of the test stand:
   `--check-hid` and `--evidence`;
 - evidence capture with explicit board↔card pairing and three frames per device;
 - 495 green tests, mypy strict, ruff, lint-imports and a clean repo audit;
-- memo V1.36, change log through C60.
+- memo V1.37, change log through C61.
 
 It is an annotated tag, so `git show w2-pipeline-ready` records why it exists.
 To roll back to this exact state:
